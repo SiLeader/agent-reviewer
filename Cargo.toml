@@ -1,0 +1,63 @@
+[workspace]
+members = ["agent-reviewer-agent", "agent-reviewer-model-provider", "agent-reviewer-tools"]
+
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+license = "Apache-2.0"
+license-file = "LICENSE"
+
+[workspace.dependencies]
+agent-reviewer-agent = { path = "agent-reviewer-agent" }
+agent-reviewer-model-provider = { path = "agent-reviewer-model-provider" }
+agent-reviewer-tools = { path = "agent-reviewer-tools" }
+
+tokio = "1.52.3"
+async-trait = "0.1.89"
+futures = "0.3.32"
+
+anyhow = "1.0.102"
+
+serde = "1.0.228"
+toml = "1.1.2"
+serde_json = "1.0.150"
+schemars = "1.2.1"
+
+genai = "0.6.0-beta.21"
+
+tracing = "0.1.44"
+tracing-subscriber = "0.3.23"
+
+minijinja = "2.20.0"
+
+clap = "4.6.1"
+
+[package]
+name = "agent-reviewer"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+license-file.workspace = true
+
+[dependencies]
+agent-reviewer-agent = { workspace = true }
+agent-reviewer-model-provider = { workspace = true }
+agent-reviewer-tools = { workspace = true }
+
+genai = { workspace = true }
+
+serde = { workspace = true, features = ["derive"] }
+toml = { workspace = true }
+schemars = { workspace = true }
+
+minijinja = { workspace = true }
+
+anyhow = { workspace = true }
+
+tokio = { workspace = true, features = ["rt", "macros"] }
+futures = { workspace = true }
+
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+
+clap = { workspace = true, features = ["derive"] }

@@ -1,0 +1,36 @@
+use genai::chat::ReasoningEffort;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ModelConfig {
+    pub(crate) id: String,
+    pub(crate) model: String,
+    pub(crate) provider: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ModelProviderConfig {
+    pub(crate) id: String,
+    pub(crate) content: ModelProviderContent,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "type")]
+pub(crate) enum ModelProviderContent {
+    OpenAI {
+        base_url: Option<String>,
+        key_env: String,
+    },
+    Anthropic {
+        base_url: Option<String>,
+        key_env: String,
+    },
+    GitHub {
+        key_env: Option<String>,
+    },
+    Bedrock {
+        region: String,
+        access_key_env: Option<String>,
+        secret_access_key_env: Option<String>,
+    },
+}
