@@ -9,3 +9,5 @@ license-file.workspace = true
 genai = { workspace = true, features = ["bedrock-sigv4"] }
 
 serde = { workspace = true, features = ["derive"] }
+
+thiserror = { workspace = true }

@@ -13,7 +13,6 @@ use std::collections::HashMap;
 pub mod submit_marker;
 
 pub(crate) struct Orchestrator {
-    instruction: String,
     prompts: PromptManager,
     agent_builder: ReActAgentBuilder,
     steps: StepsConfig,
@@ -62,10 +61,10 @@ impl Orchestrator {
             .build())
     }
 
-    pub async fn run(&self, prompt: String) -> anyhow::Result<String> {
+    pub async fn run(&self, prompt: Option<String>) -> anyhow::Result<String> {
         let agent = self.build_agent(&self.steps.triage_agent)?;
         let system_prompt = self.prompts.render_triage_system()?;
-        let user_prompt = self.prompts.render_triage_user(&prompt)?;
+        let user_prompt = self.prompts.render_triage_user(prompt)?;
         let result = agent.run(&system_prompt, &user_prompt).await?;
 
         let result: SubmitTriageArgs = serde_json::from_value(result)?;

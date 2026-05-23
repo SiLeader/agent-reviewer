@@ -4,10 +4,12 @@ use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct Config {
-    models: Vec<ModelConfig>,
-    model_providers: Vec<ModelProviderConfig>,
-    agents: Vec<AgentModelConfig>,
-    steps: StepsConfig,
+    pub(crate) models: Vec<ModelConfig>,
+    pub(crate) model_providers: Vec<ModelProviderConfig>,
+    pub(crate) agents: Vec<AgentModelConfig>,
+    pub(crate) steps: StepsConfig,
+    #[serde(default)]
+    pub(crate) prompt: StepsPromptConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -28,6 +30,19 @@ pub(crate) struct AgentModelConfig {
     pub(crate) temperature: Option<f64>,
     pub(crate) top_p: Option<f64>,
     pub(crate) max_loops: Option<usize>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub(crate) struct PromptConfig {
+    pub(crate) user_template_file: Option<String>,
+    pub(crate) system_file: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub(crate) struct StepsPromptConfig {
+    pub(crate) triage: PromptConfig,
+    pub(crate) review: PromptConfig,
+    pub(crate) finalize: PromptConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]

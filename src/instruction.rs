@@ -6,11 +6,11 @@ const INSTRUCTION_FILES: &[&str] = &[
     "CLAUDE.md",
 ];
 
-fn load_instructions() -> String {
+pub(crate) fn load_instructions() -> Option<String> {
     for file in INSTRUCTION_FILES {
         if let Ok(content) = std::fs::read_to_string(file) {
-            return content;
+            return Some(content);
         }
     }
-    "".to_string()
+    None
 }

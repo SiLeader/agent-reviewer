@@ -5,7 +5,9 @@ use genai::resolver::{AuthData, Endpoint, ServiceTargetResolver};
 use genai::{ModelIden, ModelName};
 use std::collections::HashMap;
 
+#[derive(thiserror::Error, Debug)]
 pub enum ModelBuilderError {
+    #[error("Provider not found: {0}")]
     ProviderNotFound(String),
 }
 
@@ -31,7 +33,7 @@ impl ProviderBuilder {
     ) -> Result<ServiceTargetOpt, ModelBuilderError> {
         let provider = provider
             .get(model.provider.as_str())
-            .ok_or_else(|| ModelBuilderError::ProviderNotFound(model.provider))?;
+            .ok_or(ModelBuilderError::ProviderNotFound(model.provider))?;
 
         let (endpoint, adapter_kind, auth) = match &provider.content {
             ModelProviderContent::OpenAI { key_env, base_url } => (

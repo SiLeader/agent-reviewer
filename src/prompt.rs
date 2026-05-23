@@ -4,7 +4,7 @@ use schemars::_private::serde_json;
 use serde::Serialize;
 
 pub(crate) struct PromptManager {
-    instructions: String,
+    instructions: Option<String>,
     templates: Environment<'static>,
     triage_system: String,
     review_system: String,
@@ -15,28 +15,44 @@ const TRIAGE_USER_KEY: &str = "triage_user";
 const REVIEW_USER_KEY: &str = "review_user";
 const FINALIZE_USER_KEY: &str = "finalize_user";
 
+const DEFAULT_TRIAGE_SYSTEM: &str = include_str!("default_prompts/triage/system.md");
+const DEFAULT_TRIAGE_USER: &str = include_str!("default_prompts/triage/user.md.jinja2");
+const DEFAULT_REVIEW_SYSTEM: &str = include_str!("default_prompts/review/system.md");
+const DEFAULT_REVIEW_USER: &str = include_str!("default_prompts/review/user.md.jinja2");
+const DEFAULT_FINALIZE_SYSTEM: &str = include_str!("default_prompts/finalize/system.md");
+const DEFAULT_FINALIZE_USER: &str = include_str!("default_prompts/finalize/user.md.jinja2");
+
 impl PromptManager {
     pub fn new(
-        instructions: String,
-        triage_system: String,
-        triage_user: String,
-        review_system: String,
-        review_user: String,
-        finalize_system: String,
-        finalize_user: String,
+        instructions: Option<String>,
+        triage_system: Option<String>,
+        triage_user: Option<String>,
+        review_system: Option<String>,
+        review_user: Option<String>,
+        finalize_system: Option<String>,
+        finalize_user: Option<String>,
     ) -> anyhow::Result<Self> {
         let mut templates = Environment::new();
 
-        templates.add_template_owned(TRIAGE_USER_KEY, triage_user)?;
-        templates.add_template_owned(REVIEW_USER_KEY, review_user)?;
-        templates.add_template_owned(FINALIZE_USER_KEY, finalize_user)?;
+        templates.add_template_owned(
+            TRIAGE_USER_KEY,
+            triage_user.unwrap_or_else(|| DEFAULT_TRIAGE_USER.to_string()),
+        )?;
+        templates.add_template_owned(
+            REVIEW_USER_KEY,
+            review_user.unwrap_or_else(|| DEFAULT_REVIEW_USER.to_string()),
+        )?;
+        templates.add_template_owned(
+            FINALIZE_USER_KEY,
+            finalize_user.unwrap_or_else(|| DEFAULT_FINALIZE_USER.to_string()),
+        )?;
 
         Ok(Self {
             instructions,
             templates,
-            triage_system,
-            review_system,
-            finalize_system,
+            triage_system: triage_system.unwrap_or_else(|| DEFAULT_TRIAGE_SYSTEM.to_string()),
+            review_system: review_system.unwrap_or_else(|| DEFAULT_REVIEW_SYSTEM.to_string()),
+            finalize_system: finalize_system.unwrap_or_else(|| DEFAULT_FINALIZE_SYSTEM.to_string()),
         })
     }
 
@@ -57,7 +73,7 @@ impl PromptManager {
         Ok(template.render(ctx)?)
     }
 
-    pub fn render_triage_user(&self, prompt: &str) -> anyhow::Result<String> {
+    pub fn render_triage_user(&self, prompt: Option<String>) -> anyhow::Result<String> {
         self.render_impl(
             TRIAGE_USER_KEY,
             &serde_json::json!({
