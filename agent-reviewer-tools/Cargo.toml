@@ -17,3 +17,6 @@ serde_json = { workspace = true }
 schemars = { workspace = true }
 
 anyhow = { workspace = true }
+
+glob = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }

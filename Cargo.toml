@@ -33,6 +33,10 @@ minijinja = "2.20.0"
 
 clap = "4.6.1"
 
+chrono = "0.4.44"
+
+glob = "0.3.3"
+
 [package]
 name = "agent-reviewer"
 edition.workspace = true
