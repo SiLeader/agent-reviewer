@@ -81,6 +81,7 @@ impl Git {
     pub fn diff_single_commit(
         &self,
         commit_id: String,
+        files: Option<Vec<String>>,
         summary: bool,
     ) -> anyhow::Result<GitDiffResult> {
         let oid = self.repo.revparse_single(&commit_id)?.id();
@@ -94,13 +95,14 @@ impl Git {
             Some(&mut DiffOptions::default()),
         )?;
 
-        Self::diff_to_result(&diff, None, summary)
+        Self::diff_to_result(&diff, files, summary)
     }
 
     pub fn diff_commit_range(
         &self,
         from: String,
         to: String,
+        files: Option<Vec<String>>,
         summary: bool,
     ) -> anyhow::Result<GitDiffResult> {
         let from = self.repo.revparse_single(&from)?.peel_to_tree()?;
@@ -110,7 +112,7 @@ impl Git {
             Some(&to),
             Some(&mut DiffOptions::default()),
         )?;
-        Self::diff_to_result(&diff, None, summary)
+        Self::diff_to_result(&diff, files, summary)
     }
 
     fn diff_to_result(

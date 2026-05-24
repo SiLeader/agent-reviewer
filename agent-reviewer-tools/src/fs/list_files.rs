@@ -134,7 +134,7 @@ fn list_files(args: ListFilesArgs) -> anyhow::Result<String> {
     serde_json::to_string(&result).context("failed to serialize listFiles result")
 }
 
-fn search_pattern(root_dir: &Path, pattern: &str) -> String {
+pub(super) fn search_pattern(root_dir: &Path, pattern: &str) -> String {
     let pattern_path = Path::new(pattern);
 
     if pattern_path.is_absolute() {

@@ -8,7 +8,7 @@ use agent_reviewer_agent::ReActAgent;
 use agent_reviewer_agent::builder::ReActAgentBuilder;
 use agent_reviewer_agent::tools::subagent::Explorer;
 use agent_reviewer_model_provider::ModelConfig;
-use agent_reviewer_tools::fs::{ListFiles, ReadFile};
+use agent_reviewer_tools::fs::{ListFiles, ReadFile, SearchFile};
 use agent_reviewer_tools::git::{
     GitCurrentBranch, GitDefaultBranch, GitDiffCommitRange, GitDiffSingleCommit,
     GitDiffSummaryCommitRange, GitDiffSummarySingleCommit, GitPrBaseBranch,
@@ -109,6 +109,7 @@ impl Orchestrator {
             vec![
                 Arc::new(ReadFile),
                 Arc::new(ListFiles),
+                Arc::new(SearchFile),
                 Arc::new(GitDiffSingleCommit),
                 Arc::new(GitDiffCommitRange),
                 Arc::new(GitDiffSummarySingleCommit),
@@ -164,6 +165,7 @@ impl Orchestrator {
             vec![
                 Arc::new(ReadFile),
                 Arc::new(ListFiles),
+                Arc::new(SearchFile),
                 Arc::new(GitDiffSingleCommit),
                 Arc::new(GitDiffCommitRange),
                 Arc::new(GitDiffSummarySingleCommit),

@@ -37,7 +37,7 @@ impl AgentTool for GitDiffCommitRange {
 
         tokio::task::spawn_blocking(|| {
             let git = Git::new()?;
-            let diff = git.diff_commit_range(args.from, args.to, false)?;
+            let diff = git.diff_commit_range(args.from, args.to, args.files, false)?;
 
             Ok(serde_json::to_string(&diff)?)
         })
@@ -59,7 +59,7 @@ impl AgentTool for GitDiffSummaryCommitRange {
 
         tokio::task::spawn_blocking(|| {
             let git = Git::new()?;
-            let diff_summary = git.diff_commit_range(args.from, args.to, true)?;
+            let diff_summary = git.diff_commit_range(args.from, args.to, args.files, true)?;
 
             Ok(serde_json::to_string(&diff_summary)?)
         })

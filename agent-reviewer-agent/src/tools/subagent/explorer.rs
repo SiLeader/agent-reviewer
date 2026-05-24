@@ -1,5 +1,5 @@
 use crate::ReActAgent;
-use agent_reviewer_tools::fs::{ListFiles, ReadFile};
+use agent_reviewer_tools::fs::{ListFiles, ReadFile, SearchFile};
 use agent_reviewer_tools::git::{
     GitCurrentBranch, GitDefaultBranch, GitDiffCommitRange, GitDiffSingleCommit,
     GitDiffSummaryCommitRange, GitDiffSummarySingleCommit, GitPrBaseBranch,
@@ -155,6 +155,7 @@ impl From<ReActAgent> for Explorer {
     fn from(mut agent: ReActAgent) -> Self {
         agent.tools.add_tool(Arc::new(ReadFile));
         agent.tools.add_tool(Arc::new(ListFiles));
+        agent.tools.add_tool(Arc::new(SearchFile));
         agent.tools.add_tool(Arc::new(GitDiffSingleCommit));
         agent.tools.add_tool(Arc::new(GitDiffCommitRange));
         agent.tools.add_tool(Arc::new(GitDiffSummarySingleCommit));

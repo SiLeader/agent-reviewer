@@ -1,9 +1,11 @@
 mod list_files;
 mod read_file;
+mod search;
 
 use anyhow::Context;
 pub use list_files::*;
 pub use read_file::*;
+pub use search::*;
 
 fn check_path_location(path: &str) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()

@@ -8,7 +8,7 @@ use agent_reviewer_tools::{CompoundAgentTools, ToolCallResponse};
 pub use concurrency::ConcurrencyLimiter;
 use genai::Client;
 use genai::chat::{ChatMessage, ChatOptions, ChatRequest};
-use tracing::{debug, error, info};
+use tracing::info;
 
 pub struct ReActAgent {
     model_name: String,
