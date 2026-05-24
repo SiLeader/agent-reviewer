@@ -7,13 +7,17 @@ pub(crate) struct SubmitTriage;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub(crate) struct SubmitTriageArgs {
+    #[schemars(required, description = "The review units to submit.")]
     pub review_units: Vec<ReviewUnit>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub(crate) struct ReviewUnit {
+    #[schemars(required, description = "The task to review.")]
     pub task: String,
+    #[schemars(required, description = "The files to focus on.")]
     pub focus_files: Vec<String>,
+    #[schemars(required, description = "The model to use for the review.")]
     pub model: ReviewModel,
 }
 

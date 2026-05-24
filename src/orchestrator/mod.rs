@@ -8,12 +8,16 @@ use agent_reviewer_agent::ReActAgent;
 use agent_reviewer_agent::builder::ReActAgentBuilder;
 use agent_reviewer_agent::tools::subagent::Explorer;
 use agent_reviewer_tools::fs::{ListFiles, ReadFile};
-use agent_reviewer_tools::git::{GitDiff, GitDiffSummary};
+use agent_reviewer_tools::git::{
+    GitCurrentBranch, GitDefaultBranch, GitDiffCommitRange, GitDiffSingleCommit,
+    GitDiffSummaryCommitRange, GitDiffSummarySingleCommit, GitPrBaseBranch,
+};
 use agent_reviewer_tools::{AgentTool, MarkerAgentTool};
 use futures::future::join_all;
 use genai::chat::ChatOptions;
 use std::collections::HashMap;
 use std::sync::Arc;
+use uuid::Uuid;
 
 pub mod submit_marker;
 
@@ -54,6 +58,7 @@ impl Orchestrator {
 
     fn build_agent(
         &self,
+        agent_name: &str,
         id: &str,
         tools: Vec<Arc<dyn AgentTool>>,
         marker_tools: Vec<Arc<dyn MarkerAgentTool>>,
@@ -79,23 +84,30 @@ impl Orchestrator {
             .override_options(options)
             .override_tools(tools)
             .override_marker_tools(marker_tools)
-            .build())
+            .build(format!("{agent_name}-{}", Uuid::now_v7())))
     }
 
     pub async fn run(&self, prompt: Option<String>) -> anyhow::Result<String> {
         let explorer = Arc::new(Explorer::from(self.build_agent(
+            "exporter",
             &self.subagent.explorer.agent,
             vec![],
             vec![],
         )?));
 
         let agent = self.build_agent(
+            "triage",
             &self.steps.triage_agent,
             vec![
                 Arc::new(ReadFile),
                 Arc::new(ListFiles),
-                Arc::new(GitDiff),
-                Arc::new(GitDiffSummary),
+                Arc::new(GitDiffSingleCommit),
+                Arc::new(GitDiffCommitRange),
+                Arc::new(GitDiffSummarySingleCommit),
+                Arc::new(GitDiffSummaryCommitRange),
+                Arc::new(GitPrBaseBranch),
+                Arc::new(GitDefaultBranch),
+                Arc::new(GitCurrentBranch),
                 explorer.clone(),
             ],
             vec![Arc::new(SubmitTriage)],
@@ -116,6 +128,7 @@ impl Orchestrator {
         .collect::<anyhow::Result<Vec<_>>>()?;
 
         let agent = self.build_agent(
+            "finalize",
             &self.steps.finalize_agent,
             vec![],
             vec![Arc::new(SubmitReviewResult)],
@@ -134,6 +147,7 @@ impl Orchestrator {
         explorer: Arc<Explorer>,
     ) -> anyhow::Result<SubmitReviewArgs> {
         let agent = self.build_agent(
+            "review",
             match unit.model {
                 ReviewModel::Light => &self.steps.review_light_agent,
                 ReviewModel::Standard => &self.steps.review_standard_agent,
@@ -142,8 +156,13 @@ impl Orchestrator {
             vec![
                 Arc::new(ReadFile),
                 Arc::new(ListFiles),
-                Arc::new(GitDiff),
-                Arc::new(GitDiffSummary),
+                Arc::new(GitDiffSingleCommit),
+                Arc::new(GitDiffCommitRange),
+                Arc::new(GitDiffSummarySingleCommit),
+                Arc::new(GitDiffSummaryCommitRange),
+                Arc::new(GitPrBaseBranch),
+                Arc::new(GitDefaultBranch),
+                Arc::new(GitCurrentBranch),
                 explorer,
             ],
             vec![Arc::new(SubmitReview)],

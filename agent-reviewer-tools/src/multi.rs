@@ -1,8 +1,9 @@
 use crate::{AgentTool, MarkerAgentTool};
 use futures::future::join_all;
-use genai::chat::{ChatMessage, Tool, ToolCall};
+use genai::chat::{ChatMessage, MessageContent, Tool, ToolCall, ToolResponse};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use tracing::{debug, info};
 
 #[derive(Clone, Default)]
 pub struct CompoundAgentTools {
@@ -16,7 +17,7 @@ pub enum ToolCallResponse<'a> {
         marker: Vec<&'a ToolCall>,
         non_marker: Vec<&'a ToolCall>,
     },
-    Called(Vec<ChatMessage>),
+    Called(ChatMessage),
 }
 
 impl CompoundAgentTools {
@@ -54,16 +55,24 @@ impl CompoundAgentTools {
         self.description.clone()
     }
 
-    async fn run(&self, call: &ToolCall) -> ChatMessage {
+    async fn run(&self, call: &ToolCall) -> String {
+        debug!(
+            "Tool '{}' called with arguments: {}",
+            call.fn_name, call.fn_arguments
+        );
+        let start = std::time::Instant::now();
         let tool = match self.tools.get(&call.fn_name) {
             None => {
-                return ChatMessage::tool(format!("Unknown tool: {}", call.fn_name));
+                return format!("Unknown tool: {}", call.fn_name);
             }
             Some(t) => t,
         };
-        match tool.run(&call.fn_arguments).await {
-            Ok(r) => ChatMessage::tool(r),
-            Err(e) => ChatMessage::tool(format!("Error running tool '{}': {}", call.fn_name, e)),
+        let fut = tool.run(&call.fn_arguments);
+        let duration = start.elapsed();
+        info!("Tool '{}' completed in {:?}", call.fn_name, duration);
+        match fut.await {
+            Ok(r) => r,
+            Err(e) => format!("Error running tool '{}': {}", call.fn_name, e),
         }
     }
 
@@ -78,8 +87,17 @@ impl CompoundAgentTools {
                 non_marker: non_marker_calls,
             };
         }
-        ToolCallResponse::Called(
-            join_all(non_marker_calls.into_iter().map(|call| self.run(call))).await,
+        let calls = join_all(
+            non_marker_calls
+                .into_iter()
+                .map(|call| async { (call.call_id.clone(), self.run(call).await) }),
         )
+        .await
+        .into_iter()
+        .map(|(id, response)| ToolResponse::new(id, response))
+        .collect::<Vec<_>>();
+        ToolCallResponse::Called(ChatMessage::tool(MessageContent::from_tool_responses(
+            calls,
+        )))
     }
 }

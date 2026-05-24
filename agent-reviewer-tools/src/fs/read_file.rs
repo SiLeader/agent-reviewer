@@ -11,13 +11,15 @@ pub struct ReadFile;
 
 #[derive(Debug, Deserialize, JsonSchema)]
 struct ReadFileArgs {
-    #[schemars(description = "The path to the file to read.")]
+    #[schemars(required, description = "The path to the file to read.")]
     path: String,
     #[schemars(
+        required,
         description = "The line number to start reading from (inclusive). If not provided, reads from the beginning of the file."
     )]
     start_line: Option<usize>,
     #[schemars(
+        required,
         description = "The line number to end reading at (inclusive). If not provided, reads until the end of the file."
     )]
     end_line: Option<usize>,

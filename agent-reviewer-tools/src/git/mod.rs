@@ -1,7 +1,7 @@
-mod git_diff;
-mod git_diff_summary;
+mod branch;
+mod diffs;
 mod helper;
 mod remotes;
 
-pub use git_diff::*;
-pub use git_diff_summary::*;
+pub use branch::*;
+pub use diffs::*;

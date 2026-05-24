@@ -13,7 +13,7 @@ use agent_reviewer_model_provider::{ModelConfig, ModelProviderConfig, WithProvid
 use clap::Parser;
 use genai::Client;
 use std::path::Path;
-use tracing::info;
+use tracing::{debug, info};
 
 mod config;
 mod instruction;
@@ -39,6 +39,9 @@ struct Args {
     )]
     allow_output_fallback_to_stdout: bool,
 
+    #[arg(short, long, help = "Unique identifier for the review session")]
+    id: Option<String>,
+
     #[arg(help = "Prompt to use for the review step.")]
     prompt: Option<String>,
 }
@@ -56,7 +59,7 @@ async fn main() {
             std::process::exit(1);
         }
     };
-    info!("Configuration loaded: {:?}", config);
+    debug!("Configuration loaded: {:?}", config);
     let prompts = match load_prompt(&config.prompt) {
         Ok(p) => p,
         Err(e) => {
@@ -71,8 +74,11 @@ async fn main() {
             std::process::exit(1);
         }
     };
+    let session_id = args.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    info!("Starting review session with ID: {}", session_id);
     let concurrency_limiter = ConcurrencyLimiter::new(config.concurrency);
-    let agent_builder = ReActAgentBuilder::new(concurrency_limiter).override_client(client);
+    let agent_builder =
+        ReActAgentBuilder::new(session_id, concurrency_limiter).override_client(client);
 
     let orchestrator = Orchestrator::new(
         prompts,

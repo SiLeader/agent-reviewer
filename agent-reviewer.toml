@@ -16,7 +16,7 @@ provider = "github"
 
 [[agents]]
 id = "light"
-model = "gpt-4.1"
+model = "gpt-5-mini"
 
 [[agents]]
 id = "standard"

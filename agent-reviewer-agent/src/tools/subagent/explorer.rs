@@ -1,6 +1,9 @@
 use crate::ReActAgent;
 use agent_reviewer_tools::fs::{ListFiles, ReadFile};
-use agent_reviewer_tools::git::{GitDiff, GitDiffSummary};
+use agent_reviewer_tools::git::{
+    GitCurrentBranch, GitDefaultBranch, GitDiffCommitRange, GitDiffSingleCommit,
+    GitDiffSummaryCommitRange, GitDiffSummarySingleCommit, GitPrBaseBranch,
+};
 use agent_reviewer_tools::{AgentTool, MarkerAgentTool, tool_description};
 use genai::chat::Tool;
 use schemars::JsonSchema;
@@ -13,36 +16,56 @@ pub struct Explorer {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
 struct ExplorerArgs {
+    #[schemars(required, description = "The task to explore.")]
     task: String,
+    #[schemars(
+        required,
+        description = "The files that have changed since the last commit."
+    )]
     changed_files: Option<Vec<String>>,
+    #[schemars(required, description = "The symbols to search for.")]
     symbols: Option<Vec<String>>,
+    #[schemars(required, description = "The initial files to start with.")]
     initial_files: Option<Vec<String>>,
+    #[schemars(required, description = "The constraints to apply to the search.")]
     constraints: Option<Constraints>,
+    #[schemars(required, description = "The repository context to use.")]
     repo_context: Option<RepoContext>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
 struct Constraints {
+    #[schemars(required, description = "The maximum number of files to return.")]
     max_files: usize,
+    #[schemars(
+        required,
+        description = "The maximum number of snippets to return per file."
+    )]
     max_snippets_per_file: usize,
+    #[schemars(
+        required,
+        description = "The maximum number of symbols to return per file."
+    )]
     max_depth: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
 struct RepoContext {
+    #[schemars(required, description = "The programming language of the repository.")]
     language: Option<String>,
+    #[schemars(required, description = "The framework used in the repository.")]
     framework: Option<String>,
+    #[schemars(
+        required,
+        description = "The root directories to search within the repository."
+    )]
     root_directories: Option<Vec<String>>,
 }
 
 struct Submit;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
 struct SubmitArgs {
     summary: String,
     files: Vec<FoundFile>,
@@ -53,7 +76,6 @@ struct SubmitArgs {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
 struct FoundFile {
     path: String,
     relevance: Relevance,
@@ -62,7 +84,7 @@ struct FoundFile {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 enum Relevance {
     High,
     Medium,
@@ -70,16 +92,17 @@ enum Relevance {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
 struct Range {
+    #[schemars(required, description = "The start line of the range.")]
     start_line: Option<usize>,
+    #[schemars(required, description = "The end line of the range.")]
     end_line: Option<usize>,
+    #[schemars(required, description = "The start column of the range.")]
     symbol: Option<String>,
     reason: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
 struct Relationship {
     from: String,
     to: String,
@@ -88,7 +111,7 @@ struct Relationship {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 enum RelationshipType {
     Imports,
     Calls,
@@ -108,8 +131,13 @@ impl From<ReActAgent> for Explorer {
     fn from(mut agent: ReActAgent) -> Self {
         agent.tools.add_tool(Arc::new(ReadFile));
         agent.tools.add_tool(Arc::new(ListFiles));
-        agent.tools.add_tool(Arc::new(GitDiff));
-        agent.tools.add_tool(Arc::new(GitDiffSummary));
+        agent.tools.add_tool(Arc::new(GitDiffSingleCommit));
+        agent.tools.add_tool(Arc::new(GitDiffCommitRange));
+        agent.tools.add_tool(Arc::new(GitDiffSummarySingleCommit));
+        agent.tools.add_tool(Arc::new(GitDiffSummaryCommitRange));
+        agent.tools.add_tool(Arc::new(GitPrBaseBranch));
+        agent.tools.add_tool(Arc::new(GitDefaultBranch));
+        agent.tools.add_tool(Arc::new(GitCurrentBranch));
         agent.tools.add_marker(Arc::new(Submit));
 
         Self { agent }

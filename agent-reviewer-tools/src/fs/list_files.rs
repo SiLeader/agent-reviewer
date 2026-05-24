@@ -19,16 +19,18 @@ pub struct ListFiles;
 #[derive(Debug, Deserialize, JsonSchema)]
 struct ListFilesArgs {
     #[schemars(
+        required,
         description = "The pattern to match files against. '**' can be used to match any number of directories, '*' can be used to match any number of characters in a file or directory name."
     )]
     pattern: String,
     #[schemars(
+        required,
         description = "The pattern to exclude files against. '**' can be used to match any number of directories, '*' can be used to match any number of characters in a file or directory name."
     )]
     exclude_patterns: Option<Vec<String>>,
-    #[schemars(description = "The root directory to start the search from.")]
+    #[schemars(required, description = "The root directory to start the search from.")]
     root_dir: Option<String>,
-    #[schemars(description = "The maximum number of files to return.")]
+    #[schemars(required, description = "The maximum number of files to return.")]
     max_files: Option<usize>,
 }
 

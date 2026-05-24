@@ -1,35 +1,8 @@
 use crate::git::remotes::GitRemote;
 use crate::git::remotes::github::GitHub;
-use git2::{Diff, DiffOptions, Repository, Tree};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use git2::{Diff, DiffOptions, Repository};
+use serde::Serialize;
 use std::path::PathBuf;
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub(super) struct GitDiffRange {
-    #[serde(rename = "type")]
-    #[schemars(description = "The type of the diff range.")]
-    pub diff_type: GitDiffType,
-    #[schemars(
-        description = "The branch or commit range to diff. If type is 'branch', this is the branch name. If type is 'commit_range', this is the format 'from..to'. If type is 'single_commit', this field is ignored."
-    )]
-    pub from: Option<String>,
-    pub to: Option<String>,
-    pub commit_id: Option<String>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub(super) enum GitDiffType {
-    #[schemars(description = "Get diff between a single commit and its parent.")]
-    SingleCommit,
-    #[schemars(description = "Get diff between two commits.")]
-    CommitRange,
-    #[schemars(description = "Get diff in a branch.")]
-    Branch,
-    #[schemars(description = "Get diff in a pull request for current branch.")]
-    PullRequest,
-}
 
 #[derive(Debug, Serialize)]
 pub struct GitDiffResult {
@@ -91,66 +64,68 @@ impl Git {
         Ok(Self { repo })
     }
 
-    fn get_tree_pair(
-        &self,
-        range: GitDiffRange,
-        remote: impl GitRemote,
-    ) -> anyhow::Result<(Option<Tree<'_>>, Option<Tree<'_>>)> {
-        match range.diff_type {
-            GitDiffType::SingleCommit => {
-                let commit_id = range.commit_id.unwrap_or_else(|| "HEAD".to_string());
-                let oid = self.repo.revparse_single(&commit_id)?.id();
-                let commit = self.repo.find_commit(oid)?;
-                let tree = commit.tree()?;
-                let parent_tree = commit.parent(0).ok().map(|p| p.tree()).transpose()?;
-                Ok((parent_tree, Some(tree)))
-            }
-            GitDiffType::CommitRange | GitDiffType::Branch => {
-                let from = match range.from {
-                    None => self
-                        .repo
-                        .revparse_single(&remote.get_default_branch()?)?
-                        .peel_to_tree()?,
-                    Some(from) => self.repo.revparse_single(&from)?.peel_to_tree()?,
-                };
-                let to = match range.to {
-                    None => self.repo.head()?.peel_to_commit()?.tree()?,
-                    Some(to) => self.repo.revparse_single(&to)?.peel_to_tree()?,
-                };
-                Ok((Some(from), Some(to)))
-            }
-            GitDiffType::PullRequest => {
-                let from = self
-                    .repo
-                    .revparse_single(&remote.get_pull_request_base_branch()?)?
-                    .peel_to_tree()?;
-                let to = self.repo.head()?.peel_to_commit()?.tree()?;
-                Ok((Some(from), Some(to)))
-            }
-        }
+    pub fn current_branch(&self) -> anyhow::Result<String> {
+        let head = self.repo.head()?;
+        let branch_name = head.shorthand()?;
+        Ok(branch_name.to_string())
     }
 
-    pub fn diff(
+    pub fn default_branch(&self) -> anyhow::Result<String> {
+        GitHub.get_default_branch()
+    }
+
+    pub fn get_pr_default_branch(&self) -> anyhow::Result<String> {
+        GitHub.get_pull_request_base_branch()
+    }
+
+    pub fn diff_single_commit(
         &self,
-        range: GitDiffRange,
+        commit_id: String,
+        summary: bool,
+    ) -> anyhow::Result<GitDiffResult> {
+        let oid = self.repo.revparse_single(&commit_id)?.id();
+        let commit = self.repo.find_commit(oid)?;
+        let head = commit.tree()?;
+        let base = commit.parent(0).ok().map(|p| p.tree()).transpose()?;
+
+        let diff = self.repo.diff_tree_to_tree(
+            base.as_ref(),
+            Some(&head),
+            Some(&mut DiffOptions::default()),
+        )?;
+
+        Self::diff_to_result(&diff, None, summary)
+    }
+
+    pub fn diff_commit_range(
+        &self,
+        from: String,
+        to: String,
+        summary: bool,
+    ) -> anyhow::Result<GitDiffResult> {
+        let from = self.repo.revparse_single(&from)?.peel_to_tree()?;
+        let to = self.repo.revparse_single(&to)?.peel_to_tree()?;
+        let diff = self.repo.diff_tree_to_tree(
+            Some(&from),
+            Some(&to),
+            Some(&mut DiffOptions::default()),
+        )?;
+        Self::diff_to_result(&diff, None, summary)
+    }
+
+    fn diff_to_result(
+        diff: &Diff,
         files: Option<Vec<String>>,
         summary: bool,
     ) -> anyhow::Result<GitDiffResult> {
-        let (base, head) = self.get_tree_pair(range, GitHub::default())?;
-        let mut options = DiffOptions::default();
-
-        let diff = self
-            .repo
-            .diff_tree_to_tree(base.as_ref(), head.as_ref(), Some(&mut options))?;
-
         let files_to_get = files
-            .unwrap_or_else(|| vec![])
+            .unwrap_or_else(Vec::new)
             .into_iter()
-            .map(|f| PathBuf::from(f))
+            .map(PathBuf::from)
             .map(|p| p.canonicalize().unwrap_or(p))
             .collect::<Vec<PathBuf>>();
 
-        let diff_result = Self::parse_diff(&diff, &files_to_get, summary)?;
+        let diff_result = Self::parse_diff(diff, &files_to_get, summary)?;
 
         Ok(diff_result)
     }

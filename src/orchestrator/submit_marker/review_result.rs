@@ -7,6 +7,7 @@ pub(crate) struct SubmitReviewResult;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub(crate) struct SubmitReviewResultArgs {
+    #[schemars(required, description = "The review result.")]
     pub review_result: String,
 }
 

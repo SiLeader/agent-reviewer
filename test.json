@@ -1,0 +1,325 @@
+[
+  {
+    "name": "read_file",
+    "description": "Reads a file from the file system.",
+    "schema": {
+      "$schema": "https://spec.openapis.org/oas/3.0/schema/2024-10-18#/definitions/Schema",
+      "properties": {
+        "end_line": {
+          "description": "The line number to end reading at (inclusive). If not provided, reads until the end of the file.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "path": {
+          "description": "The path to the file to read.",
+          "type": "string"
+        },
+        "start_line": {
+          "description": "The line number to start reading from (inclusive). If not provided, reads from the beginning of the file.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "path",
+        "start_line",
+        "end_line"
+      ],
+      "title": "ReadFileArgs",
+      "type": "object"
+    },
+    "strict": true,
+    "config": null
+  },
+  {
+    "name": "list_files",
+    "description": "Lists files in a directory.",
+    "schema": {
+      "$schema": "https://spec.openapis.org/oas/3.0/schema/2024-10-18#/definitions/Schema",
+      "properties": {
+        "exclude_patterns": {
+          "description": "The pattern to exclude files against. '**' can be used to match any number of directories, '*' can be used to match any number of characters in a file or directory name.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "max_files": {
+          "description": "The maximum number of files to return.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "pattern": {
+          "description": "The pattern to match files against. '**' can be used to match any number of directories, '*' can be used to match any number of characters in a file or directory name.",
+          "type": "string"
+        },
+        "root_dir": {
+          "description": "The root directory to start the search from.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pattern",
+        "exclude_patterns",
+        "root_dir",
+        "max_files"
+      ],
+      "title": "ListFilesArgs",
+      "type": "object"
+    },
+    "strict": true,
+    "config": null
+  },
+  {
+    "name": "git_diff",
+    "description": "Returns the diff of a files with a range of commits.",
+    "schema": {
+      "$schema": "https://spec.openapis.org/oas/3.0/schema/2024-10-18#/definitions/Schema",
+      "properties": {
+        "commit_id": {
+          "description": "The commit ID to diff against. If type is 'single_commit', this is the commit ID. If type is 'commit_range', this is ignored. If type is 'branch', this is ignored and defaults to the current HEAD.",
+          "type": "string"
+        },
+        "files": {
+          "description": "The files to diff. If not provided, diffs all files.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "from": {
+          "description": "The branch or commit range to diff. If type is 'branch', this is the branch name. If type is 'commit_range', this is the format 'from..to'. If type is 'single_commit', this field is ignored.",
+          "type": "string"
+        },
+        "to": {
+          "description": "The branch or commit to diff against. If type is 'branch', this is ignored and defaults to the current HEAD. If type is 'commit_range', this is the format 'from..to'. If type is 'single_commit', this field is ignored.",
+          "type": "string"
+        },
+        "type": {
+          "description": "The type of the diff range.",
+          "enum": [
+            "single_commit",
+            "commit_range",
+            "branch",
+            "pull_request"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "files",
+        "type",
+        "from",
+        "to",
+        "commit_id"
+      ],
+      "title": "GitDiffArgs",
+      "type": "object"
+    },
+    "strict": true,
+    "config": null
+  },
+  {
+    "name": "git_diff_summary",
+    "description": "Returns the summary of a diff of a files with a range of commits.",
+    "schema": {
+      "$schema": "https://spec.openapis.org/oas/3.0/schema/2024-10-18#/definitions/Schema",
+      "properties": {
+        "commit_id": {
+          "description": "The commit ID to diff against. If type is 'single_commit', this is the commit ID. If type is 'commit_range', this is ignored. If type is 'branch', this is ignored and defaults to the current HEAD.",
+          "type": "string"
+        },
+        "files": {
+          "description": "The files to diff. If not provided, diffs all files.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "from": {
+          "description": "The branch or commit range to diff. If type is 'branch', this is the branch name. If type is 'commit_range', this is the format 'from..to'. If type is 'single_commit', this field is ignored.",
+          "type": "string"
+        },
+        "to": {
+          "description": "The branch or commit to diff against. If type is 'branch', this is ignored and defaults to the current HEAD. If type is 'commit_range', this is the format 'from..to'. If type is 'single_commit', this field is ignored.",
+          "type": "string"
+        },
+        "type": {
+          "description": "The type of the diff range.",
+          "enum": [
+            "single_commit",
+            "commit_range",
+            "branch",
+            "pull_request"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "files",
+        "type",
+        "from",
+        "to",
+        "commit_id"
+      ],
+      "title": "GitDiffSummaryArgs",
+      "type": "object"
+    },
+    "strict": true,
+    "config": null
+  },
+  {
+    "name": "explorer",
+    "description": "Explore the codebase and find the most interesting files and symbols",
+    "schema": {
+      "$schema": "https://spec.openapis.org/oas/3.0/schema/2024-10-18#/definitions/Schema",
+      "properties": {
+        "changed_files": {
+          "description": "The files that have changed since the last commit.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "constraints": {
+          "description": "The constraints to apply to the search.",
+          "properties": {
+            "max_depth": {
+              "description": "The maximum number of symbols to return per file.",
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "max_files": {
+              "description": "The maximum number of files to return.",
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "max_snippets_per_file": {
+              "description": "The maximum number of snippets to return per file.",
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "max_files",
+            "max_snippets_per_file",
+            "max_depth"
+          ],
+          "type": "object"
+        },
+        "initial_files": {
+          "description": "The initial files to start with.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "repo_context": {
+          "description": "The repository context to use.",
+          "properties": {
+            "framework": {
+              "description": "The framework used in the repository.",
+              "type": "string"
+            },
+            "language": {
+              "description": "The programming language of the repository.",
+              "type": "string"
+            },
+            "root_directories": {
+              "description": "The root directories to search within the repository.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "language",
+            "framework",
+            "root_directories"
+          ],
+          "type": "object"
+        },
+        "symbols": {
+          "description": "The symbols to search for.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "task": {
+          "description": "The task to explore.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task",
+        "changed_files",
+        "symbols",
+        "initial_files",
+        "constraints",
+        "repo_context"
+      ],
+      "title": "ExplorerArgs",
+      "type": "object"
+    },
+    "strict": true,
+    "config": null
+  },
+  {
+    "name": "submit_triage",
+    "description": "Submit triage result",
+    "schema": {
+      "$schema": "https://spec.openapis.org/oas/3.0/schema/2024-10-18#/definitions/Schema",
+      "properties": {
+        "review_units": {
+          "description": "The review units to submit.",
+          "items": {
+            "properties": {
+              "focus_files": {
+                "description": "The files to focus on.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "model": {
+                "description": "The model to use for the review.",
+                "enum": [
+                  "Light",
+                  "Standard",
+                  "Power"
+                ],
+                "type": "string"
+              },
+              "task": {
+                "description": "The task to review.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "task",
+              "focus_files",
+              "model"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "review_units"
+      ],
+      "title": "SubmitTriageArgs",
+      "type": "object"
+    },
+    "strict": true,
+    "config": null
+  }
+]
