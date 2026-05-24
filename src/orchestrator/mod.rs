@@ -7,7 +7,6 @@ use agent_reviewer_agent::ReActAgent;
 use agent_reviewer_agent::builder::ReActAgentBuilder;
 use futures::future::join_all;
 use genai::chat::ChatOptions;
-use schemars::_private::serde_json;
 use std::collections::HashMap;
 
 pub mod submit_marker;

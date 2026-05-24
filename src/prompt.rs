@@ -1,6 +1,5 @@
 use crate::orchestrator::submit_marker::{ReviewUnit, SubmitReviewArgs};
 use minijinja::Environment;
-use schemars::_private::serde_json;
 use serde::Serialize;
 
 pub(crate) struct PromptManager {
