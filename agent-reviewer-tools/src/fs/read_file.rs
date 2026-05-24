@@ -1,3 +1,4 @@
+use crate::fs::check_path_location;
 use crate::{AgentTool, tool_description};
 use anyhow::Context;
 use genai::chat::Tool;
@@ -39,6 +40,8 @@ impl AgentTool for ReadFile {
 
     async fn run(&self, args: &Value) -> anyhow::Result<String> {
         let args: ReadFileArgs = serde_json::from_value(args.clone())?;
+
+        check_path_location(&args.path)?;
 
         let file = tokio::fs::File::open(&args.path).await?;
         let reader = tokio::io::BufReader::new(file);

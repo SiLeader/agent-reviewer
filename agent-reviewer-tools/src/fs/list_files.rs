@@ -4,6 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use crate::fs::check_path_location;
 use crate::{AgentTool, tool_description};
 use anyhow::{Context, anyhow};
 use chrono::{DateTime, Utc};
@@ -61,8 +62,11 @@ impl AgentTool for ListFiles {
 
 fn list_files(args: ListFilesArgs) -> anyhow::Result<String> {
     let root_dir = args.root_dir.unwrap_or_else(|| ".".to_string());
+    check_path_location(&root_dir)?;
+
     let root_dir = fs::canonicalize(&root_dir)
         .with_context(|| format!("failed to resolve root directory: {root_dir}"))?;
+
     let search_pattern = search_pattern(&root_dir, &args.pattern);
     let exclude_patterns = args.exclude_patterns.unwrap_or_default();
     let max_files = args.max_files.unwrap_or(usize::MAX);
