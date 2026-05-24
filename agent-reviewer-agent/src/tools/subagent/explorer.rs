@@ -1,4 +1,5 @@
 use crate::ReActAgent;
+use crate::concurrency::ConcurrencyLimiter;
 use agent_reviewer_tools::{AgentTool, CompoundAgentTools, MarkerAgentTool, tool_description};
 use genai::Client;
 use genai::chat::Tool;
@@ -110,7 +111,11 @@ impl From<ReActAgent> for Explorer {
 }
 
 impl Explorer {
-    pub fn new(model_name: String, client: Client) -> Self {
+    pub fn new(
+        model_name: String,
+        client: Client,
+        concurrency_limiter: ConcurrencyLimiter,
+    ) -> Self {
         Self::from(ReActAgent::new(
             model_name,
             client,
@@ -118,6 +123,7 @@ impl Explorer {
             10,
             "submit".to_string(),
             None,
+            concurrency_limiter,
         ))
     }
 }

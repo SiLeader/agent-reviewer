@@ -1,7 +1,9 @@
 pub mod builder;
-mod tools;
+mod concurrency;
+pub mod tools;
 
 use agent_reviewer_tools::{CompoundAgentTools, ToolCallResponse};
+pub use concurrency::ConcurrencyLimiter;
 use genai::Client;
 use genai::chat::{ChatMessage, ChatOptions, ChatRequest};
 use tracing::{error, info};
@@ -13,11 +15,12 @@ pub struct ReActAgent {
     max_loop_count: usize,
     options: Option<ChatOptions>,
     submit_tool_name: String,
+    concurrency_limiter: ConcurrencyLimiter,
 }
 
 impl ReActAgent {
-    pub fn builder() -> builder::ReActAgentBuilder {
-        builder::ReActAgentBuilder::default()
+    pub fn builder(concurrency_limiter: ConcurrencyLimiter) -> builder::ReActAgentBuilder {
+        builder::ReActAgentBuilder::new(concurrency_limiter)
     }
 
     pub fn new(
@@ -27,6 +30,7 @@ impl ReActAgent {
         max_loop_count: usize,
         submit_tool_name: String,
         options: Option<ChatOptions>,
+        concurrency_limiter: ConcurrencyLimiter,
     ) -> Self {
         Self {
             model_name,
@@ -35,6 +39,7 @@ impl ReActAgent {
             max_loop_count,
             options,
             submit_tool_name,
+            concurrency_limiter,
         }
     }
 
@@ -62,12 +67,16 @@ impl ReActAgent {
             );
 
             let request = self.create_request(system_prompt.to_string(), messages.clone());
-            let response = self
-                .client
-                .exec_chat(&self.model_name, request, self.options.as_ref())
-                .await?;
+            let response = {
+                let _permit = self.concurrency_limiter.acquire().await?;
+                self.client
+                    .exec_chat(&self.model_name, request, self.options.as_ref())
+                    .await?
+            };
+            let fut = self.tools.run_all(response.content.tool_calls());
+            messages.push(ChatMessage::assistant(response.content.clone()));
 
-            match self.tools.run_all(response.content.tool_calls()).await {
+            match fut.await {
                 ToolCallResponse::MarkerFound { marker, non_marker } => {
                     if let Some(call) = marker
                         .iter()
@@ -89,8 +98,6 @@ impl ReActAgent {
                     messages.extend(tool_responses);
                 }
             }
-
-            messages.push(ChatMessage::assistant(response.content.clone()));
         }
         anyhow::bail!("Exceeded max loop count")
     }

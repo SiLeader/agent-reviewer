@@ -1,14 +1,10 @@
 use crate::git::remotes::GitRemote;
 
-pub struct GitHub {
-    base_url: String,
-}
+pub struct GitHub;
 
 impl Default for GitHub {
     fn default() -> Self {
-        Self {
-            base_url: "https://api.github.com".to_string(),
-        }
+        Self
     }
 }
 

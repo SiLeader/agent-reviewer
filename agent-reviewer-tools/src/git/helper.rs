@@ -95,7 +95,7 @@ impl Git {
         &self,
         range: GitDiffRange,
         remote: impl GitRemote,
-    ) -> anyhow::Result<(Option<Tree>, Option<Tree>)> {
+    ) -> anyhow::Result<(Option<Tree<'_>>, Option<Tree<'_>>)> {
         match range.diff_type {
             GitDiffType::SingleCommit => {
                 let commit_id = range.commit_id.unwrap_or_else(|| "HEAD".to_string());

@@ -3,7 +3,6 @@ name = "agent-reviewer-model-provider"
 edition.workspace = true
 version.workspace = true
 license.workspace = true
-license-file.workspace = true
 
 [dependencies]
 genai = { workspace = true, features = ["bedrock-sigv4"] }

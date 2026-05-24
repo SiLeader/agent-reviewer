@@ -3,13 +3,13 @@ name = "agent-reviewer-agent"
 edition.workspace = true
 version.workspace = true
 license.workspace = true
-license-file.workspace = true
 
 [dependencies]
 agent-reviewer-tools = { workspace = true }
 
 genai = { workspace = true }
 
+tokio = { workspace = true, features = ["sync"] }
 async-trait = { workspace = true }
 
 serde = { workspace = true, features = ["derive"] }

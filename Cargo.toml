@@ -43,7 +43,6 @@ name = "agent-reviewer"
 edition.workspace = true
 version.workspace = true
 license.workspace = true
-license-file.workspace = true
 
 [dependencies]
 agent-reviewer-agent = { workspace = true }

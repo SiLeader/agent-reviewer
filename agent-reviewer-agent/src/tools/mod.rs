@@ -1,1 +1,1 @@
-pub(crate) mod subagent;
+pub mod subagent;

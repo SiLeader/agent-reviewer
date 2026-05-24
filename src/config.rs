@@ -8,8 +8,11 @@ pub(crate) struct Config {
     pub(crate) model_providers: Vec<ModelProviderConfig>,
     pub(crate) agents: Vec<AgentModelConfig>,
     pub(crate) steps: StepsConfig,
+    pub(crate) subagent: SubagentConfig,
     #[serde(default)]
     pub(crate) prompt: StepsPromptConfig,
+    #[serde(default = "default_concurrency")]
+    pub(crate) concurrency: usize,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -19,6 +22,11 @@ pub(crate) struct StepsConfig {
     pub(crate) review_standard_agent: String,
     pub(crate) review_power_agent: String,
     pub(crate) finalize_agent: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct SubagentConfig {
+    pub(crate) explorer_model: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -45,7 +53,7 @@ pub(crate) struct StepsPromptConfig {
     pub(crate) finalize: PromptConfig,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ReasoningEffortConfig {
     None,
@@ -56,6 +64,10 @@ pub enum ReasoningEffortConfig {
     Max,
     Budget(u32),
     Minimal,
+}
+
+fn default_concurrency() -> usize {
+    1
 }
 
 impl From<ReasoningEffortConfig> for ReasoningEffort {

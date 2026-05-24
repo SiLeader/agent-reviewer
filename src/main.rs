@@ -7,6 +7,7 @@ use crate::config::{PromptConfig, StepsPromptConfig};
 use crate::instruction::load_instructions;
 use crate::orchestrator::Orchestrator;
 use crate::prompt::PromptManager;
+use agent_reviewer_agent::ConcurrencyLimiter;
 use agent_reviewer_agent::builder::ReActAgentBuilder;
 use agent_reviewer_model_provider::{ModelConfig, ModelProviderConfig, WithProviderConfig};
 use clap::Parser;
@@ -70,9 +71,19 @@ async fn main() {
             std::process::exit(1);
         }
     };
-    let agent_builder = ReActAgentBuilder::default().override_client(client);
+    let concurrency_limiter = ConcurrencyLimiter::new(config.concurrency);
+    let agent_builder =
+        ReActAgentBuilder::new(concurrency_limiter.clone()).override_client(client.clone());
 
-    let orchestrator = Orchestrator::new(prompts, agent_builder, config.steps, config.agents);
+    let orchestrator = Orchestrator::new(
+        client,
+        prompts,
+        agent_builder,
+        config.steps,
+        config.subagent,
+        concurrency_limiter,
+        config.agents,
+    );
     match orchestrator.run(args.prompt).await {
         Ok(result) => {
             if let Some(output_file) = args.output {

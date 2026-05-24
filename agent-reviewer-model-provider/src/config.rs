@@ -1,5 +1,4 @@
-use genai::chat::ReasoningEffort;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ModelConfig {

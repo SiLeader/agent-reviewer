@@ -1,4 +1,5 @@
 use crate::ReActAgent;
+use crate::concurrency::ConcurrencyLimiter;
 use agent_reviewer_tools::{AgentTool, CompoundAgentTools, MarkerAgentTool};
 use genai::Client;
 use genai::chat::ChatOptions;
@@ -13,6 +14,7 @@ pub struct ReActAgentBuilder {
     max_loop_count: usize,
     options: Option<ChatOptions>,
     submit_tool_name: String,
+    concurrency_limiter: ConcurrencyLimiter,
 }
 
 impl ReActAgentBuilder {
@@ -70,12 +72,13 @@ impl ReActAgentBuilder {
             self.max_loop_count,
             self.submit_tool_name,
             self.options,
+            self.concurrency_limiter,
         )
     }
 }
 
-impl Default for ReActAgentBuilder {
-    fn default() -> Self {
+impl ReActAgentBuilder {
+    pub fn new(concurrency_limiter: ConcurrencyLimiter) -> Self {
         Self {
             model_name: "".to_string(),
             client: Client::default(),
@@ -84,6 +87,7 @@ impl Default for ReActAgentBuilder {
             max_loop_count: 10,
             options: None,
             submit_tool_name: "submit".to_string(),
+            concurrency_limiter,
         }
     }
 }
