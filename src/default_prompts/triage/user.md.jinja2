@@ -1,6 +1,13 @@
 {% if instructions %}
+Additional instructions:
 {{ instructions }}
+
 {% endif %}
-{$ if prompt %}
+{% if prompt %}
+User request:
 {{ prompt }}
-{$ endif %}
+{% else %}
+Review the current repository changes.
+{% endif %}
+
+Determine the review units for this request. Inspect the repository state and changed files as needed, then call `submitTriage`.

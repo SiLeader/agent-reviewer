@@ -1,3 +1,47 @@
 {% if instructions %}
+Additional instructions:
 {{ instructions }}
+
 {% endif %}
+Reviewer outputs:
+
+{% if reviews %}
+{% for review in reviews %}
+Review {{ loop.index }}:
+
+Summary:
+{{ review.summary }}
+
+Findings:
+{% if review.findings %}
+{% for finding in review.findings %}
+- Severity: {{ finding.severity }}
+  Category: {{ finding.category }}
+  Location: {% if finding.path %}{{ finding.path }}{% else %}unknown path{% endif %}{% if finding.line %}:{{ finding.line }}{% endif %}
+  Title: {{ finding.title }}
+  Comment: {{ finding.comment }}
+{% if finding.recommendation %}
+  Recommendation: {{ finding.recommendation }}
+{% endif %}
+{% endfor %}
+{% else %}
+- No actionable findings.
+{% endif %}
+
+Unanswered questions:
+{% if review.unansweredQuestions %}
+{% for question in review.unansweredQuestions %}
+- {{ question }}
+{% endfor %}
+{% else %}
+- None.
+{% endif %}
+
+Confidence: {{ review.confidence }}
+
+{% endfor %}
+{% else %}
+No reviewer outputs were provided.
+{% endif %}
+
+Synthesize these outputs and call `submitReviewResult`.

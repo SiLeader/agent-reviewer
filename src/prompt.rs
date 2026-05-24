@@ -102,3 +102,99 @@ impl PromptManager {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::orchestrator::submit_marker::{
+        ReviewCategory, ReviewFinding, ReviewModel, ReviewSeverity,
+    };
+
+    fn default_prompt_manager() -> PromptManager {
+        PromptManager::new(
+            Some("Prefer correctness issues over style comments.".to_string()),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn renders_default_system_prompts() {
+        let prompts = default_prompt_manager();
+
+        let triage = prompts.render_triage_system().unwrap();
+        let review = prompts.render_review_system().unwrap();
+        let finalize = prompts.render_finalize_system().unwrap();
+
+        assert!(triage.contains("submitTriage"));
+        assert!(review.contains("submitReview"));
+        assert!(finalize.contains("submitReviewResult"));
+    }
+
+    #[test]
+    fn renders_default_triage_user_template_with_prompt() {
+        let prompts = default_prompt_manager();
+
+        let rendered = prompts
+            .render_triage_user(Some("Focus on error handling.".to_string()))
+            .unwrap();
+
+        assert!(rendered.contains("Prefer correctness issues over style comments."));
+        assert!(rendered.contains("Focus on error handling."));
+        assert!(rendered.contains("submitTriage"));
+    }
+
+    #[test]
+    fn renders_default_review_user_template_with_unit() {
+        let prompts = default_prompt_manager();
+        let unit = ReviewUnit {
+            task: "Review CLI output handling".to_string(),
+            focus_files: vec!["src/main.rs".to_string(), "src/config.rs".to_string()],
+            model: ReviewModel::Standard,
+        };
+
+        let rendered = prompts.render_review_user(&unit).unwrap();
+
+        assert!(rendered.contains("Review CLI output handling"));
+        assert!(rendered.contains("src/main.rs"));
+        assert!(rendered.contains("src/config.rs"));
+        assert!(rendered.contains("standard"));
+        assert!(rendered.contains("submitReview"));
+    }
+
+    #[test]
+    fn renders_default_finalize_user_template_with_reviews() {
+        let prompts = default_prompt_manager();
+        let reviews = vec![SubmitReviewArgs {
+            summary: "Found one issue.".to_string(),
+            findings: vec![ReviewFinding {
+                severity: ReviewSeverity::High,
+                category: ReviewCategory::Bug,
+                path: Some("src/main.rs".to_string()),
+                line: Some(42),
+                title: "Fallback hides write failures".to_string(),
+                comment: "The code can silently discard the intended output file.".to_string(),
+                recommendation: Some(
+                    "Return the write error unless fallback is enabled.".to_string(),
+                ),
+            }],
+            unanswered_questions: vec!["Whether generated files are in scope.".to_string()],
+            confidence: 0.85,
+        }];
+
+        let rendered = prompts.render_finalize_user(&reviews).unwrap();
+
+        assert!(rendered.contains("Found one issue."));
+        assert!(rendered.contains("high"));
+        assert!(rendered.contains("bug"));
+        assert!(rendered.contains("src/main.rs:42"));
+        assert!(rendered.contains("Fallback hides write failures"));
+        assert!(rendered.contains("Whether generated files are in scope."));
+        assert!(rendered.contains("submitReviewResult"));
+    }
+}

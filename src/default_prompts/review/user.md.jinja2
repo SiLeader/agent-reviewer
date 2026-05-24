@@ -1,3 +1,23 @@
 {% if instructions %}
+Additional instructions:
 {{ instructions }}
+
 {% endif %}
+Review unit:
+
+Task:
+{{ unit.task }}
+
+Model tier:
+{{ unit.model }}
+
+Focus files:
+{% if unit.focusFiles %}
+{% for file in unit.focusFiles %}
+- {{ file }}
+{% endfor %}
+{% else %}
+- No explicit focus files were provided.
+{% endif %}
+
+Inspect this unit and call `submitReview` with your findings.
