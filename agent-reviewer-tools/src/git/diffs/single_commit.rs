@@ -24,7 +24,7 @@ struct GitDiffSingleCommitArgs {
 impl AgentTool for GitDiffSingleCommit {
     fn tool(&self) -> Tool {
         tool_description::<GitDiffSingleCommitArgs>(
-            "git_diff",
+            "git_diff_for_commit",
             "Returns the diff of a single commit.",
         )
     }
@@ -46,7 +46,7 @@ impl AgentTool for GitDiffSingleCommit {
 impl AgentTool for GitDiffSummarySingleCommit {
     fn tool(&self) -> Tool {
         tool_description::<GitDiffSingleCommitArgs>(
-            "git_diff_summary",
+            "git_diff_summary_for_commit",
             "Returns the diff summary of a single commit.",
         )
     }

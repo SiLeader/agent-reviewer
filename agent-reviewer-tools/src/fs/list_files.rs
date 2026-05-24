@@ -543,6 +543,7 @@ fn character_class_matches(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ops::Deref;
 
     #[test]
     fn respects_gitignore_anchored_paths_and_negation() {
@@ -650,13 +651,31 @@ mod tests {
         files.into_iter().map(|file| file.path).collect()
     }
 
-    fn test_root(name: &str) -> PathBuf {
-        let root =
-            std::env::temp_dir().join(format!("metsuke-list-files-{name}-{}", std::process::id()));
+    struct TestRoot(PathBuf);
+
+    impl Deref for TestRoot {
+        type Target = Path;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+
+    impl Drop for TestRoot {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn test_root(name: &str) -> TestRoot {
+        let root = std::env::current_dir()
+            .unwrap()
+            .join("target")
+            .join(format!("metsuke-list-files-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(&root).unwrap();
 
-        root
+        TestRoot(root)
     }
 
     fn write_file(path: &Path, content: &str) {

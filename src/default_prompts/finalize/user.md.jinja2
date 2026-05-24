@@ -29,8 +29,8 @@ Findings:
 {% endif %}
 
 Unanswered questions:
-{% if review.unansweredQuestions %}
-{% for question in review.unansweredQuestions %}
+{% if review.unanswered_questions %}
+{% for question in review.unanswered_questions %}
 - {{ question }}
 {% endfor %}
 {% else %}
@@ -44,4 +44,4 @@ Confidence: {{ review.confidence }}
 No reviewer outputs were provided.
 {% endif %}
 
-Synthesize these outputs and call `submitReviewResult`.
+Synthesize these outputs and call `submit_review_result`.

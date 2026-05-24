@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 pub(crate) struct SubmitReviewResult;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub(crate) struct SubmitReviewResultArgs {
     #[schemars(required, description = "The review result.")]
     pub review_result: String,

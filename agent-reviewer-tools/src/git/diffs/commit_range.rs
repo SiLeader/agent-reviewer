@@ -27,7 +27,7 @@ struct GitDiffCommitRangeArgs {
 impl AgentTool for GitDiffCommitRange {
     fn tool(&self) -> Tool {
         tool_description::<GitDiffCommitRangeArgs>(
-            "git_diff",
+            "git_diff_for_commit_range",
             "Returns the diff of a files with a range of commits.",
         )
     }
@@ -49,7 +49,7 @@ impl AgentTool for GitDiffCommitRange {
 impl AgentTool for GitDiffSummaryCommitRange {
     fn tool(&self) -> Tool {
         tool_description::<GitDiffCommitRangeArgs>(
-            "git_diff_summary",
+            "git_diff_summary_for_commit_range",
             "Returns the diff summary of a files with a range of commits.",
         )
     }

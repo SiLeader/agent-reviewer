@@ -131,9 +131,9 @@ mod tests {
         let review = prompts.render_review_system().unwrap();
         let finalize = prompts.render_finalize_system().unwrap();
 
-        assert!(triage.contains("submitTriage"));
-        assert!(review.contains("submitReview"));
-        assert!(finalize.contains("submitReviewResult"));
+        assert!(triage.contains("submit_triage"));
+        assert!(review.contains("submit_review"));
+        assert!(finalize.contains("submit_review_result"));
     }
 
     #[test]
@@ -146,7 +146,7 @@ mod tests {
 
         assert!(rendered.contains("Prefer correctness issues over style comments."));
         assert!(rendered.contains("Focus on error handling."));
-        assert!(rendered.contains("submitTriage"));
+        assert!(rendered.contains("submit_triage"));
     }
 
     #[test]
@@ -164,7 +164,7 @@ mod tests {
         assert!(rendered.contains("src/main.rs"));
         assert!(rendered.contains("src/config.rs"));
         assert!(rendered.contains("standard"));
-        assert!(rendered.contains("submitReview"));
+        assert!(rendered.contains("submit_review"));
     }
 
     #[test]
@@ -195,6 +195,6 @@ mod tests {
         assert!(rendered.contains("src/main.rs:42"));
         assert!(rendered.contains("Fallback hides write failures"));
         assert!(rendered.contains("Whether generated files are in scope."));
-        assert!(rendered.contains("submitReviewResult"));
+        assert!(rendered.contains("submit_review_result"));
     }
 }

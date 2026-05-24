@@ -12,12 +12,12 @@ Model tier:
 {{ unit.model }}
 
 Focus files:
-{% if unit.focusFiles %}
-{% for file in unit.focusFiles %}
+{% if unit.focus_files %}
+{% for file in unit.focus_files %}
 - {{ file }}
 {% endfor %}
 {% else %}
 - No explicit focus files were provided.
 {% endif %}
 
-Inspect this unit and call `submitReview` with your findings.
+Inspect this unit and call `submit_review` with your findings.

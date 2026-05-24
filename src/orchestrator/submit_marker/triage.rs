@@ -6,12 +6,14 @@ use serde::{Deserialize, Serialize};
 pub(crate) struct SubmitTriage;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub(crate) struct SubmitTriageArgs {
     #[schemars(required, description = "The review units to submit.")]
     pub review_units: Vec<ReviewUnit>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub(crate) struct ReviewUnit {
     #[schemars(required, description = "The task to review.")]
     pub task: String,
@@ -22,6 +24,7 @@ pub(crate) struct ReviewUnit {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub(crate) enum ReviewModel {
     Light,
     Standard,
@@ -41,10 +44,10 @@ mod tests {
     #[test]
     fn deserializes_review_units_with_task_and_focus_files() {
         let args: SubmitTriageArgs = serde_json::from_value(serde_json::json!({
-            "reviewUnits": [
+            "review_units": [
                 {
                     "task": "Review error handling in the CLI entrypoint",
-                    "focusFiles": ["src/main.rs"],
+                    "focus_files": ["src/main.rs"],
                     "model": "standard"
                 }
             ]

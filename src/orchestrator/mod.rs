@@ -69,6 +69,7 @@ impl Orchestrator {
         id: &str,
         tools: Vec<Arc<dyn AgentTool>>,
         marker_tools: Vec<Arc<dyn MarkerAgentTool>>,
+        submit_tool: Option<Arc<dyn MarkerAgentTool>>,
     ) -> anyhow::Result<ReActAgent> {
         let Some(config) = self.agent_model_config.get(id) else {
             anyhow::bail!("Agent model configuration not found for ID: {}", id);
@@ -84,15 +85,20 @@ impl Orchestrator {
             Some(effort) => options.with_reasoning_effort(effort.into()),
         };
 
-        Ok(self
+        let builder = self
             .agent_builder
             .clone()
             .override_model_name(config.model.clone())
             .override_max_loop_count(config.max_loops.unwrap_or(DEFAULT_MAX_LOOP_COUNT))
             .override_options(options)
             .override_tools(tools)
-            .override_marker_tools(marker_tools)
-            .build(format!("{agent_name}-{}", Uuid::now_v7())))
+            .override_marker_tools(marker_tools);
+        let builder = if let Some(submit_tool) = submit_tool {
+            builder.override_submit_tool(submit_tool)
+        } else {
+            builder
+        };
+        Ok(builder.build(format!("{agent_name}-{}", Uuid::now_v7())))
     }
 
     pub async fn run(&self, prompt: Option<String>) -> anyhow::Result<String> {
@@ -101,6 +107,7 @@ impl Orchestrator {
             &self.subagent.explorer.agent,
             vec![],
             vec![],
+            None,
         )?));
 
         let agent = self.build_agent(
@@ -119,7 +126,8 @@ impl Orchestrator {
                 Arc::new(GitCurrentBranch),
                 explorer.clone(),
             ],
-            vec![Arc::new(SubmitTriage)],
+            vec![],
+            Some(Arc::new(SubmitTriage)),
         )?;
         let system_prompt = self.prompts.render_triage_system()?;
         let user_prompt = self.prompts.render_triage_user(prompt)?;
@@ -140,7 +148,8 @@ impl Orchestrator {
             "finalize",
             &self.steps.finalize_agent,
             vec![],
-            vec![Arc::new(SubmitReviewResult)],
+            vec![],
+            Some(Arc::new(SubmitReviewResult)),
         )?;
         let system_prompt = self.prompts.render_finalize_system()?;
         let user_prompt = self.prompts.render_finalize_user(&results)?;
@@ -175,7 +184,8 @@ impl Orchestrator {
                 Arc::new(GitCurrentBranch),
                 explorer,
             ],
-            vec![Arc::new(SubmitReview)],
+            vec![],
+            Some(Arc::new(SubmitReview)),
         )?;
         let system_prompt = self.prompts.render_review_system()?;
         let user_prompt = self.prompts.render_review_user(&unit)?;

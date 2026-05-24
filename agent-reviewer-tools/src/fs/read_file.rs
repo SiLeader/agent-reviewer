@@ -49,26 +49,33 @@ impl AgentTool for ReadFile {
         let reader = tokio::io::BufReader::new(file);
 
         let mut lines = reader.lines();
-        let mut line_number = 1;
+        let mut line_number = 0;
 
         let start_line = args.start_line.unwrap_or(1);
-        let end_line = args.end_line.unwrap_or(usize::MAX);
-        let mut content = Vec::with_capacity(end_line - start_line + 1);
+        let end_line = args.end_line;
+        let mut content = Vec::new();
 
         loop {
             let Some(line) = lines.next_line().await? else {
                 break;
             };
-            if start_line <= line_number && line_number <= end_line {
+
+            line_number += 1;
+            if start_line <= line_number && end_line.is_none_or(|end_line| line_number <= end_line)
+            {
                 content.push(line);
             }
-            line_number += 1;
         }
+
+        let total_lines = line_number;
+        let returned_end_line = end_line
+            .map(|end_line| end_line.min(total_lines))
+            .unwrap_or(total_lines);
         let result = ReadFileResult {
             path: args.path,
-            total_lines: line_number,
-            returned_lines_range: format!("{}-{}", start_line, end_line),
-            truncated: line_number > content.len(),
+            total_lines,
+            returned_lines_range: format!("{}-{}", start_line, returned_end_line),
+            truncated: start_line > 1 || end_line.is_some_and(|end_line| total_lines > end_line),
             content: content.join("\n"),
         };
 

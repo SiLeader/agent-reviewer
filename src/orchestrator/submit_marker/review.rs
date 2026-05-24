@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 pub(crate) struct SubmitReview;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub(crate) struct SubmitReviewArgs {
     #[schemars(required, description = "The summary of the review.")]
     pub summary: String,
@@ -22,6 +23,7 @@ pub(crate) struct SubmitReviewArgs {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub(crate) struct ReviewFinding {
     #[schemars(required, description = "The severity of the finding.")]
     pub severity: ReviewSeverity,
@@ -43,6 +45,7 @@ pub(crate) struct ReviewFinding {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub(crate) enum ReviewSeverity {
     Critical,
     High,
@@ -52,6 +55,7 @@ pub(crate) enum ReviewSeverity {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub(crate) enum ReviewCategory {
     Bug,
     Security,
@@ -87,7 +91,7 @@ mod tests {
                     "recommendation": "Return the write error unless fallback is enabled."
                 }
             ],
-            "unansweredQuestions": [],
+            "unanswered_questions": [],
             "confidence": 0.85
         }))
         .unwrap();
@@ -106,7 +110,7 @@ mod tests {
         let args: SubmitReviewArgs = serde_json::from_value(serde_json::json!({
             "summary": "No actionable findings.",
             "findings": [],
-            "unansweredQuestions": ["Whether generated files are in scope."],
+            "unanswered_questions": ["Whether generated files are in scope."],
             "confidence": 0.6
         }))
         .unwrap();

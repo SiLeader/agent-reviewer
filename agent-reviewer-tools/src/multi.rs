@@ -48,6 +48,7 @@ impl CompoundAgentTools {
     }
 
     pub fn add_marker(&mut self, marker: Arc<dyn MarkerAgentTool>) {
+        self.description.push(marker.tool());
         self.marker.insert(marker.tool().name.to_string());
     }
 

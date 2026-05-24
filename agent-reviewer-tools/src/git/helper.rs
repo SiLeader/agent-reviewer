@@ -2,7 +2,7 @@ use crate::git::remotes::GitRemote;
 use crate::git::remotes::github::GitHub;
 use git2::{Diff, DiffOptions, Repository};
 use serde::Serialize;
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 
 #[derive(Debug, Serialize)]
 pub struct GitDiffResult {
@@ -121,10 +121,9 @@ impl Git {
         summary: bool,
     ) -> anyhow::Result<GitDiffResult> {
         let files_to_get = files
-            .unwrap_or_else(Vec::new)
+            .unwrap_or_default()
             .into_iter()
-            .map(PathBuf::from)
-            .map(|p| p.canonicalize().unwrap_or(p))
+            .map(normalize_repo_relative_path)
             .collect::<Vec<PathBuf>>();
 
         let diff_result = Self::parse_diff(diff, &files_to_get, summary)?;
@@ -240,4 +239,14 @@ impl Git {
             summary: summary_result,
         })
     }
+}
+
+fn normalize_repo_relative_path(path: String) -> PathBuf {
+    Path::new(&path)
+        .components()
+        .filter_map(|component| match component {
+            Component::Normal(value) => Some(value),
+            _ => None,
+        })
+        .collect()
 }

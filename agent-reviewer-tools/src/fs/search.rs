@@ -1,6 +1,7 @@
 use crate::fs::check_path_location;
 use crate::fs::list_files::search_pattern;
 use crate::{AgentTool, tool_description};
+use anyhow::Context;
 use futures::future::join_all;
 use genai::chat::Tool;
 use glob::glob;
@@ -60,6 +61,24 @@ impl AgentTool for SearchFile {
         let mut tasks = Vec::new();
         for file in glob(&pattern)? {
             let file = file?;
+            let metadata = tokio::fs::metadata(&file)
+                .await
+                .with_context(|| format!("failed to read metadata for {}", file.display()))?;
+
+            if !metadata.is_file() {
+                continue;
+            }
+
+            let file = tokio::fs::canonicalize(&file)
+                .await
+                .with_context(|| format!("failed to resolve matched path {}", file.display()))?;
+            file.strip_prefix(&root_dir).with_context(|| {
+                format!(
+                    "matched path {} is outside root directory {}",
+                    file.display(),
+                    root_dir.display()
+                )
+            })?;
 
             tasks.push(Self::find_impl(file, &args.words));
         }
