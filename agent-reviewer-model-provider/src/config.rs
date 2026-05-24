@@ -10,6 +10,7 @@ pub struct ModelConfig {
 #[derive(Debug, Clone, Deserialize)]
 pub struct ModelProviderConfig {
     pub(crate) id: String,
+    #[serde(flatten)]
     pub(crate) content: ModelProviderContent,
 }
 

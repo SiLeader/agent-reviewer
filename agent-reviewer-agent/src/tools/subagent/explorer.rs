@@ -1,7 +1,7 @@
 use crate::ReActAgent;
-use crate::concurrency::ConcurrencyLimiter;
-use agent_reviewer_tools::{AgentTool, CompoundAgentTools, MarkerAgentTool, tool_description};
-use genai::Client;
+use agent_reviewer_tools::fs::{ListFiles, ReadFile};
+use agent_reviewer_tools::git::{GitDiff, GitDiffSummary};
+use agent_reviewer_tools::{AgentTool, MarkerAgentTool, tool_description};
 use genai::chat::Tool;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -105,26 +105,14 @@ impl MarkerAgentTool for Submit {
 }
 
 impl From<ReActAgent> for Explorer {
-    fn from(agent: ReActAgent) -> Self {
-        Self { agent }
-    }
-}
+    fn from(mut agent: ReActAgent) -> Self {
+        agent.tools.add_tool(Arc::new(ReadFile));
+        agent.tools.add_tool(Arc::new(ListFiles));
+        agent.tools.add_tool(Arc::new(GitDiff));
+        agent.tools.add_tool(Arc::new(GitDiffSummary));
+        agent.tools.add_marker(Arc::new(Submit));
 
-impl Explorer {
-    pub fn new(
-        model_name: String,
-        client: Client,
-        concurrency_limiter: ConcurrencyLimiter,
-    ) -> Self {
-        Self::from(ReActAgent::new(
-            model_name,
-            client,
-            CompoundAgentTools::new(vec![], vec![Arc::new(Submit)]),
-            10,
-            "submit".to_string(),
-            None,
-            concurrency_limiter,
-        ))
+        Self { agent }
     }
 }
 

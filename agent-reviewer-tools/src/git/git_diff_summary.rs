@@ -18,7 +18,7 @@ struct GitDiffSummaryArgs {
 impl AgentTool for GitDiffSummary {
     fn tool(&self) -> Tool {
         tool_description::<GitDiffSummaryArgs>(
-            "gitDiffSummary",
+            "git_diff_summary",
             "Returns the summary of a diff of a files with a range of commits.",
         )
     }

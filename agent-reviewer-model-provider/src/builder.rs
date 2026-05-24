@@ -4,6 +4,7 @@ use genai::adapter::AdapterKind;
 use genai::resolver::{AuthData, Endpoint, ServiceTargetResolver};
 use genai::{ModelIden, ModelName};
 use std::collections::HashMap;
+use tracing::debug;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ModelBuilderError {
@@ -47,7 +48,7 @@ impl ProviderBuilder {
                 AuthData::FromEnv(key_env.clone()),
             ),
             ModelProviderContent::GitHub { key_env } => (
-                None,
+                Some(Endpoint::from_static("https://models.github.ai/inference/")),
                 AdapterKind::GithubCopilot,
                 AuthData::FromEnv(
                     key_env
@@ -81,6 +82,10 @@ impl ProviderBuilder {
                 ])),
             ),
         };
+        debug!(
+            "Selected service target for '{}' with adapter: {:?}",
+            model.model, adapter_kind
+        );
         Ok(ServiceTargetOpt {
             endpoint,
             auth: Some(auth),

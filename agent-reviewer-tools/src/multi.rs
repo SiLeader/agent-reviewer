@@ -41,6 +41,15 @@ impl CompoundAgentTools {
         }
     }
 
+    pub fn add_tool(&mut self, tool: Arc<dyn AgentTool>) {
+        self.description.push(tool.tool());
+        self.tools.insert(tool.tool().name.to_string(), tool);
+    }
+
+    pub fn add_marker(&mut self, marker: Arc<dyn MarkerAgentTool>) {
+        self.marker.insert(marker.tool().name.to_string());
+    }
+
     pub fn description(&self) -> Vec<Tool> {
         self.description.clone()
     }

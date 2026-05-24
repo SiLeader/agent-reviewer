@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 pub(crate) struct SubmitReview;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
 pub(crate) struct SubmitReviewArgs {
     pub summary: String,
     pub findings: Vec<ReviewFinding>,
@@ -16,7 +15,6 @@ pub(crate) struct SubmitReviewArgs {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
 pub(crate) struct ReviewFinding {
     pub severity: ReviewSeverity,
     pub category: ReviewCategory,
@@ -28,7 +26,6 @@ pub(crate) struct ReviewFinding {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
 pub(crate) enum ReviewSeverity {
     Critical,
     High,
@@ -38,7 +35,6 @@ pub(crate) enum ReviewSeverity {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
 pub(crate) enum ReviewCategory {
     Bug,
     Security,
@@ -51,7 +47,7 @@ pub(crate) enum ReviewCategory {
 
 impl MarkerAgentTool for SubmitReview {
     fn tool(&self) -> Tool {
-        tool_description::<SubmitReviewArgs>("submitReview", "Submit review result")
+        tool_description::<SubmitReviewArgs>("submit_review", "Submit review result")
     }
 }
 

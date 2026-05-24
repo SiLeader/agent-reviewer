@@ -72,16 +72,13 @@ async fn main() {
         }
     };
     let concurrency_limiter = ConcurrencyLimiter::new(config.concurrency);
-    let agent_builder =
-        ReActAgentBuilder::new(concurrency_limiter.clone()).override_client(client.clone());
+    let agent_builder = ReActAgentBuilder::new(concurrency_limiter).override_client(client);
 
     let orchestrator = Orchestrator::new(
-        client,
         prompts,
         agent_builder,
         config.steps,
         config.subagent,
-        concurrency_limiter,
         config.agents,
     );
     match orchestrator.run(args.prompt).await {

@@ -50,7 +50,7 @@ struct ListedFile {
 #[async_trait::async_trait]
 impl AgentTool for ListFiles {
     fn tool(&self) -> Tool {
-        tool_description::<ListFilesArgs>("listFiles", "Lists files in a directory.")
+        tool_description::<ListFilesArgs>("list_files", "Lists files in a directory.")
     }
 
     async fn run(&self, args: &Value) -> anyhow::Result<String> {

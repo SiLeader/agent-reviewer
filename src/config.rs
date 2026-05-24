@@ -26,7 +26,12 @@ pub(crate) struct StepsConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct SubagentConfig {
-    pub(crate) explorer_model: String,
+    pub(crate) explorer: ExplorerSubagentConfig,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct ExplorerSubagentConfig {
+    pub(crate) agent: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]

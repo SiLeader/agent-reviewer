@@ -1,0 +1,39 @@
+concurrency = 1
+
+[[model_providers]]
+id = "github"
+type = "GitHub"
+
+[[models]]
+id = "gpt-4.1"
+model = "openai/gpt-4.1"
+provider = "github"
+
+[[models]]
+id = "gpt-5-mini"
+model = "openai/gpt-5-mini"
+provider = "github"
+
+[[agents]]
+id = "light"
+model = "gpt-4.1"
+
+[[agents]]
+id = "standard"
+model = "gpt-5-mini"
+effort = "medium"
+
+[[agents]]
+id = "power"
+model = "gpt-5-mini"
+effort = "high"
+
+[steps]
+triage_agent = "light"
+review_light_agent = "light"
+review_standard_agent = "standard"
+review_power_agent = "power"
+finalize_agent = "power"
+
+[subagent.explorer]
+agent = "light"

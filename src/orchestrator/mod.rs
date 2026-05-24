@@ -4,14 +4,13 @@ use crate::orchestrator::submit_marker::{
     SubmitReviewResultArgs, SubmitTriage, SubmitTriageArgs,
 };
 use crate::prompt::PromptManager;
+use agent_reviewer_agent::ReActAgent;
 use agent_reviewer_agent::builder::ReActAgentBuilder;
 use agent_reviewer_agent::tools::subagent::Explorer;
-use agent_reviewer_agent::{ConcurrencyLimiter, ReActAgent};
 use agent_reviewer_tools::fs::{ListFiles, ReadFile};
 use agent_reviewer_tools::git::{GitDiff, GitDiffSummary};
 use agent_reviewer_tools::{AgentTool, MarkerAgentTool};
 use futures::future::join_all;
-use genai::Client;
 use genai::chat::ChatOptions;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -19,13 +18,11 @@ use std::sync::Arc;
 pub mod submit_marker;
 
 pub(crate) struct Orchestrator {
-    client: Client,
     prompts: PromptManager,
     agent_builder: ReActAgentBuilder,
     steps: StepsConfig,
     subagent: SubagentConfig,
     agent_model_config: HashMap<String, AgentModelConfig>,
-    concurrency_limiter: ConcurrencyLimiter,
 }
 
 const DEFAULT_MAX_LOOP_COUNT: usize = 6;
@@ -35,12 +32,10 @@ const DEFAULT_TOP_P: f64 = 0.9;
 
 impl Orchestrator {
     pub fn new(
-        client: Client,
         prompts: PromptManager,
         agent_builder: ReActAgentBuilder,
         steps: StepsConfig,
         subagent: SubagentConfig,
-        concurrency_limiter: ConcurrencyLimiter,
         agent_model_config: Vec<AgentModelConfig>,
     ) -> Self {
         let agent_model_config = agent_model_config
@@ -49,13 +44,11 @@ impl Orchestrator {
             .collect();
 
         Self {
-            client,
             prompts,
             agent_builder,
             steps,
             subagent,
             agent_model_config,
-            concurrency_limiter,
         }
     }
 
@@ -90,11 +83,11 @@ impl Orchestrator {
     }
 
     pub async fn run(&self, prompt: Option<String>) -> anyhow::Result<String> {
-        let explorer = Arc::new(Explorer::new(
-            self.subagent.explorer_model.clone(),
-            self.client.clone(),
-            self.concurrency_limiter.clone(),
-        ));
+        let explorer = Arc::new(Explorer::from(self.build_agent(
+            &self.subagent.explorer.agent,
+            vec![],
+            vec![],
+        )?));
 
         let agent = self.build_agent(
             &self.steps.triage_agent,

@@ -35,7 +35,7 @@ struct ReadFileResult {
 #[async_trait::async_trait]
 impl AgentTool for ReadFile {
     fn tool(&self) -> Tool {
-        tool_description::<ReadFileArgs>("readFile", "Reads a file from the file system.")
+        tool_description::<ReadFileArgs>("read_file", "Reads a file from the file system.")
     }
 
     async fn run(&self, args: &Value) -> anyhow::Result<String> {

@@ -18,7 +18,7 @@ struct GitDiffArgs {
 impl AgentTool for GitDiff {
     fn tool(&self) -> Tool {
         tool_description::<GitDiffArgs>(
-            "gitDiff",
+            "git_diff",
             "Returns the diff of a files with a range of commits.",
         )
     }

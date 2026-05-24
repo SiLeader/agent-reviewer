@@ -6,13 +6,11 @@ use serde::{Deserialize, Serialize};
 pub(crate) struct SubmitTriage;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
 pub(crate) struct SubmitTriageArgs {
     pub review_units: Vec<ReviewUnit>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
 pub(crate) struct ReviewUnit {
     pub task: String,
     pub focus_files: Vec<String>,
@@ -20,7 +18,6 @@ pub(crate) struct ReviewUnit {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
 pub(crate) enum ReviewModel {
     Light,
     Standard,
@@ -29,7 +26,7 @@ pub(crate) enum ReviewModel {
 
 impl MarkerAgentTool for SubmitTriage {
     fn tool(&self) -> Tool {
-        tool_description::<SubmitTriageArgs>("submitTriage", "Submit triage result")
+        tool_description::<SubmitTriageArgs>("submit_triage", "Submit triage result")
     }
 }
 

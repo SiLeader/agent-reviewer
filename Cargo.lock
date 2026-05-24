@@ -51,6 +51,7 @@ dependencies = [
  "genai",
  "serde",
  "thiserror",
+ "tracing",
 ]
 
 [[package]]
