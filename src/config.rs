@@ -40,8 +40,6 @@ pub(crate) struct AgentModelConfig {
     pub(crate) model: String,
     pub(crate) effort: Option<ReasoningEffortConfig>,
     pub(crate) max_tokens: Option<u32>,
-    pub(crate) temperature: Option<f64>,
-    pub(crate) top_p: Option<f64>,
     pub(crate) max_loops: Option<usize>,
 }
 

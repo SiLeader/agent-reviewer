@@ -7,6 +7,7 @@ use crate::prompt::PromptManager;
 use agent_reviewer_agent::ReActAgent;
 use agent_reviewer_agent::builder::ReActAgentBuilder;
 use agent_reviewer_agent::tools::subagent::Explorer;
+use agent_reviewer_model_provider::ModelConfig;
 use agent_reviewer_tools::fs::{ListFiles, ReadFile};
 use agent_reviewer_tools::git::{
     GitCurrentBranch, GitDefaultBranch, GitDiffCommitRange, GitDiffSingleCommit,
@@ -15,6 +16,7 @@ use agent_reviewer_tools::git::{
 use agent_reviewer_tools::{AgentTool, MarkerAgentTool};
 use futures::future::join_all;
 use genai::chat::ChatOptions;
+use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -26,13 +28,12 @@ pub(crate) struct Orchestrator {
     agent_builder: ReActAgentBuilder,
     steps: StepsConfig,
     subagent: SubagentConfig,
+    model_config: HashMap<String, ModelConfig>,
     agent_model_config: HashMap<String, AgentModelConfig>,
 }
 
 const DEFAULT_MAX_LOOP_COUNT: usize = 6;
 const DEFAULT_MAX_TOKENS: u32 = 1000;
-const DEFAULT_TEMPERATURE: f64 = 0.7;
-const DEFAULT_TOP_P: f64 = 0.9;
 
 impl Orchestrator {
     pub fn new(
@@ -40,8 +41,13 @@ impl Orchestrator {
         agent_builder: ReActAgentBuilder,
         steps: StepsConfig,
         subagent: SubagentConfig,
+        model_config: Vec<ModelConfig>,
         agent_model_config: Vec<AgentModelConfig>,
     ) -> Self {
+        let model_config = model_config
+            .into_iter()
+            .map(|config| (config.id().to_string(), config))
+            .collect();
         let agent_model_config = agent_model_config
             .into_iter()
             .map(|config| (config.id.clone(), config))
@@ -52,6 +58,7 @@ impl Orchestrator {
             agent_builder,
             steps,
             subagent,
+            model_config,
             agent_model_config,
         }
     }
@@ -66,10 +73,11 @@ impl Orchestrator {
         let Some(config) = self.agent_model_config.get(id) else {
             anyhow::bail!("Agent model configuration not found for ID: {}", id);
         };
-        let options = ChatOptions::default()
-            .with_max_tokens(config.max_tokens.unwrap_or(DEFAULT_MAX_TOKENS))
-            .with_temperature(config.temperature.unwrap_or(DEFAULT_TEMPERATURE))
-            .with_top_p(config.top_p.unwrap_or(DEFAULT_TOP_P));
+        let Some(model) = self.model_config.get(&config.model) else {
+            anyhow::bail!("Model configuration not found for ID: {}", config.model);
+        };
+        let max_tokens = config.max_tokens.unwrap_or(DEFAULT_MAX_TOKENS);
+        let options = chat_options_for_model(model.model(), max_tokens);
 
         let options = match config.effort {
             None => options,
@@ -172,5 +180,56 @@ impl Orchestrator {
         let result = agent.run(&system_prompt, &user_prompt).await?;
         let result: SubmitReviewArgs = serde_json::from_value(result)?;
         Ok(result)
+    }
+}
+
+fn chat_options_for_model(model_name: &str, max_tokens: u32) -> ChatOptions {
+    if uses_max_completion_tokens(model_name) {
+        ChatOptions::default().with_extra_body(json!({
+            "max_completion_tokens": max_tokens,
+        }))
+    } else {
+        ChatOptions::default().with_max_tokens(max_tokens)
+    }
+}
+
+fn uses_max_completion_tokens(model_name: &str) -> bool {
+    let model_name = model_name
+        .split_once('/')
+        .map_or(model_name, |(_, model_name)| model_name);
+
+    model_name.starts_with("gpt-5")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{chat_options_for_model, uses_max_completion_tokens};
+
+    #[test]
+    fn uses_max_completion_tokens_for_gpt_5_models() {
+        assert!(uses_max_completion_tokens("openai/gpt-5-mini"));
+        assert!(uses_max_completion_tokens("gpt-5"));
+        assert!(!uses_max_completion_tokens("openai/gpt-4.1"));
+    }
+
+    #[test]
+    fn stores_max_completion_tokens_in_extra_body_for_gpt_5_models() {
+        let options = chat_options_for_model("openai/gpt-5-mini", 2048);
+
+        assert_eq!(options.max_tokens, None);
+        assert_eq!(
+            options.extra_body,
+            Some(serde_json::json!({
+                "max_completion_tokens": 2048,
+            }))
+        );
+    }
+
+    #[test]
+    fn keeps_max_tokens_for_older_models() {
+        let options = chat_options_for_model("openai/gpt-4.1", 1024);
+
+        assert_eq!(options.max_tokens, Some(1024));
+        assert_eq!(options.extra_body, None);
     }
 }

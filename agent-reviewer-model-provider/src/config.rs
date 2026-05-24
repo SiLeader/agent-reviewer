@@ -7,6 +7,16 @@ pub struct ModelConfig {
     pub(crate) provider: String,
 }
 
+impl ModelConfig {
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    pub fn model(&self) -> &str {
+        &self.model
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct ModelProviderConfig {
     pub(crate) id: String,

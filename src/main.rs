@@ -67,6 +67,7 @@ async fn main() {
             std::process::exit(1);
         }
     };
+    let models = config.models.clone();
     let client = match create_client(config.models, config.model_providers) {
         Ok(c) => c,
         Err(e) => {
@@ -85,6 +86,7 @@ async fn main() {
         agent_builder,
         config.steps,
         config.subagent,
+        models,
         config.agents,
     );
     match orchestrator.run(args.prompt).await {
