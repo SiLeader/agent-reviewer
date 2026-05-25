@@ -73,8 +73,10 @@ async fn main() {
     debug!("Configuration loaded: {:?}", config);
 
     if args.security_review {
+        info!("Running security review");
         run::run::<SubmitSecurityReviewArgs>(args, config).await;
     } else {
+        info!("Running review");
         run::run::<SubmitReviewArgs>(args, config).await;
     }
 }
