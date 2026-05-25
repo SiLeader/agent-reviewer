@@ -17,16 +17,20 @@ provider = "github"
 [[agents]]
 id = "light"
 model = "gpt-5-mini"
+effort = "low"
+max_tokens = 3000
 
 [[agents]]
 id = "standard"
 model = "gpt-5-mini"
 effort = "medium"
+max_tokens = 2000
 
 [[agents]]
 id = "power"
 model = "gpt-5-mini"
 effort = "high"
+max_tokens = 1000
 
 [steps]
 triage_agent = "light"
