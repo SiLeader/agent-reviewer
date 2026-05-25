@@ -41,12 +41,12 @@ triage = {
 review = {
     light = {
         main_agent = "light",
-        adviser_agent = "standard",
+        advisor_agent = "standard",
         verifier_agent = "light",
     },
     standard = {
         main_agent = "standard",
-        adviser_agent = "power",
+        advisor_agent = "power",
         verifier_agent = "standard",
     },
     power = {
