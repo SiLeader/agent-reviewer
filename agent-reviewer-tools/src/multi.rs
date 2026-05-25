@@ -59,13 +59,7 @@ impl CompoundAgentTools {
     pub fn get_tool_description_by_name(&self, name: &str) -> Option<Tool> {
         self.description
             .iter()
-            .find_map(|t| {
-                if t.name.as_str() == name {
-                    Some(t)
-                } else {
-                    None
-                }
-            })
+            .find(|t| t.name.as_str() == name)
             .cloned()
     }
 
