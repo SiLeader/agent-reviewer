@@ -52,11 +52,25 @@ impl ReActAgent {
         }
     }
 
-    fn create_request(&self, system: String, messages: Vec<ChatMessage>) -> ChatRequest {
+    fn create_request(
+        &self,
+        system: String,
+        messages: Vec<ChatMessage>,
+        is_last_turn: bool,
+    ) -> ChatRequest {
         ChatRequest {
             system: Some(system),
             messages,
-            tools: Some(self.tools.description()),
+            tools: if is_last_turn {
+                Some(
+                    self.tools
+                        .get_tool_description_by_name(&self.submit_tool_name)
+                        .into_iter()
+                        .collect(),
+                )
+            } else {
+                Some(self.tools.description())
+            },
             previous_response_id: None,
             store: Some(false),
         }
@@ -79,10 +93,18 @@ impl ReActAgent {
                 i, self.max_loop_count, self.model_name
             );
 
+            let is_last_turn = i == self.max_loop_count;
+
             if i == 1 {
                 messages.push(ChatMessage::user(format!(
                     "{}\n{user_prompt}",
                     self.step_worder(1)
+                )));
+            } else if is_last_turn {
+                messages.push(ChatMessage::user(format!(
+                    "{}\nThis is the final step. Make sure to call the '{}' tool if you haven't already.",
+                    self.step_worder(i),
+                    self.submit_tool_name
                 )));
             } else {
                 messages.push(ChatMessage::user(self.step_worder(i)));
@@ -91,7 +113,8 @@ impl ReActAgent {
                 .write(serde_json::to_string_pretty(&messages)?)
                 .await?;
 
-            let request = self.create_request(system_prompt.to_string(), messages.clone());
+            let request =
+                self.create_request(system_prompt.to_string(), messages.clone(), is_last_turn);
             let response = {
                 let _permit = self.concurrency_limiter.acquire().await?;
                 self.client

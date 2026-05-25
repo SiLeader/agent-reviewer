@@ -26,22 +26,27 @@ struct ExplorerArgs {
     )]
     task: String,
     #[schemars(
+        required,
         description = "Optional changed or already-relevant files to anchor the search. Omit or set to null when the caller does not know them yet."
     )]
     changed_files: Option<Vec<String>>,
     #[schemars(
+        required,
         description = "Optional functions, types, modules, routes, config keys, or other identifiers to trace through the repository."
     )]
     symbols: Option<Vec<String>>,
     #[schemars(
+        required,
         description = "Optional seed files or directories to inspect first before branching out to related code."
     )]
     initial_files: Option<Vec<String>>,
     #[schemars(
+        required,
         description = "Optional limits for keeping the exploration focused. Omit or set to null when no special limits are needed."
     )]
     constraints: Option<Constraints>,
     #[schemars(
+        required,
         description = "Optional repository context that helps the explorer choose where to look, such as language, framework, or root directories."
     )]
     repo_context: Option<RepoContext>,
@@ -65,13 +70,20 @@ struct Constraints {
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 struct RepoContext {
-    #[schemars(description = "Optional primary programming language for the area being explored.")]
+    #[schemars(
+        required,
+        description = "Optional primary programming language for the area being explored."
+    )]
     language: Option<String>,
     #[schemars(
+        required,
         description = "Optional framework, runtime, or platform used by the relevant code."
     )]
     framework: Option<String>,
-    #[schemars(description = "Optional root directories to search within the repository.")]
+    #[schemars(
+        required,
+        description = "Optional root directories to search within the repository."
+    )]
     root_directories: Option<Vec<String>>,
 }
 

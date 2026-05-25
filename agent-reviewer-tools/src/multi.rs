@@ -42,6 +42,19 @@ impl CompoundAgentTools {
         }
     }
 
+    pub fn get_tool_description_by_name(&self, name: &str) -> Option<Tool> {
+        self.description
+            .iter()
+            .find_map(|t| {
+                if t.name.as_str() == name {
+                    Some(t)
+                } else {
+                    None
+                }
+            })
+            .cloned()
+    }
+
     pub fn add_tool(&mut self, tool: Arc<dyn AgentTool>) {
         self.description.push(tool.tool());
         self.tools.insert(tool.tool().name.to_string(), tool);
