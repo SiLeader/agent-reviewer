@@ -1,0 +1,13 @@
+{% if instructions %}
+Additional instructions:
+{{ instructions }}
+
+{% endif %}
+{% if prompt %}
+User request:
+{{ prompt }}
+{% else %}
+Review the current repository changes for security risks.
+{% endif %}
+
+Determine the security review units for this request. Inspect the repository state and changed files as needed, then call `submit_triage`.

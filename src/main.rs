@@ -17,7 +17,7 @@ extern crate agent_reviewer_model_provider;
 extern crate agent_reviewer_tools;
 extern crate genai;
 
-use crate::orchestrator::ReviewUnit;
+use crate::orchestrator::{SubmitReviewArgs, SubmitSecurityReviewArgs};
 use clap::Parser;
 use std::path::Path;
 use tracing::{debug, info};
@@ -73,9 +73,11 @@ async fn main() {
     debug!("Configuration loaded: {:?}", config);
 
     if args.security_review {
-        todo!()
+        info!("Running security review");
+        run::run::<SubmitSecurityReviewArgs>(args, config).await;
     } else {
-        run::run::<ReviewUnit>(args, config).await;
+        info!("Running review");
+        run::run::<SubmitReviewArgs>(args, config).await;
     }
 }
 

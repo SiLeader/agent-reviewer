@@ -1,0 +1,23 @@
+{% if instructions %}
+Additional instructions:
+{{ instructions }}
+
+{% endif %}
+Security review unit:
+
+Task:
+{{ unit.task }}
+
+Model tier:
+{{ unit.model }}
+
+Focus files:
+{% if unit.focus_files %}
+{% for file in unit.focus_files %}
+- {{ file }}
+{% endfor %}
+{% else %}
+- No explicit focus files were provided.
+{% endif %}
+
+Inspect this unit for security risks and call `submit_review` with your findings.
