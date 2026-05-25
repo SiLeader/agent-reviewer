@@ -1,7 +1,22 @@
+// Copyright 2026- SiLeader (Cerussite).
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::config::{AgentModelConfig, StepsConfig, SubagentConfig};
+pub(crate) use crate::orchestrator::review_unit::*;
 use crate::orchestrator::submit_marker::{
-    ReviewModel, ReviewUnit, SubmitReview, SubmitReviewArgs, SubmitReviewResult,
-    SubmitReviewResultArgs, SubmitTriage, SubmitTriageArgs,
+    SubmitReview, SubmitReviewArgs, SubmitReviewResult, SubmitReviewResultArgs, SubmitTriage,
+    SubmitTriageArgs,
 };
 use crate::prompt::PromptManager;
 use agent_reviewer_agent::ReActAgent;
@@ -21,10 +36,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
+mod review_unit;
 pub mod submit_marker;
 
-pub(crate) struct Orchestrator {
-    prompts: PromptManager,
+pub(crate) struct Orchestrator<R> {
+    prompts: PromptManager<R>,
     agent_builder: ReActAgentBuilder,
     steps: StepsConfig,
     subagent: SubagentConfig,
@@ -54,9 +70,12 @@ fn get_ro_toolset(additional: &[Option<Arc<dyn AgentTool>>]) -> Vec<Arc<dyn Agen
     tools
 }
 
-impl Orchestrator {
+impl<R> Orchestrator<R>
+where
+    R: Reviewable,
+{
     pub fn new(
-        prompts: PromptManager,
+        prompts: PromptManager<R>,
         agent_builder: ReActAgentBuilder,
         steps: StepsConfig,
         subagent: SubagentConfig,
@@ -134,13 +153,13 @@ impl Orchestrator {
             &self.steps.triage.agent,
             get_ro_toolset(&[Some(explorer.clone())]),
             vec![],
-            Some(Arc::new(SubmitTriage)),
+            Some(Arc::new(SubmitTriage::<R>::default())),
         )?;
         let system_prompt = self.prompts.render_triage_system()?;
         let user_prompt = self.prompts.render_triage_user(prompt)?;
         let result = agent.run(&system_prompt, &user_prompt).await?;
 
-        let result: SubmitTriageArgs = serde_json::from_value(result)?;
+        let result: SubmitTriageArgs<R> = serde_json::from_value(result)?;
         let results = join_all(
             result
                 .review_units
@@ -168,10 +187,10 @@ impl Orchestrator {
 
     async fn run_review(
         &self,
-        unit: ReviewUnit,
+        unit: R,
         explorer: Arc<Explorer>,
     ) -> anyhow::Result<SubmitReviewArgs> {
-        let review_conf = match unit.model {
+        let review_conf = match unit.model() {
             ReviewModel::Light => &self.steps.review.light,
             ReviewModel::Standard => &self.steps.review.standard,
             ReviewModel::Power => &self.steps.review.power,

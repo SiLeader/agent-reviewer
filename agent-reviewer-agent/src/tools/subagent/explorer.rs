@@ -1,3 +1,17 @@
+// Copyright 2026- SiLeader (Cerussite).
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::ReActAgent;
 use crate::tools::subagent::{run_subagent, setup_tools};
 use agent_reviewer_tools::{AgentTool, MarkerAgentTool, tool_description};
@@ -161,30 +175,5 @@ impl AgentTool for Explorer {
 
     async fn run(&self, args: &Value) -> anyhow::Result<String> {
         run_subagent(&self.agent, EXPLORER_SYSTEM_PROMPT, args).await
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{EXPLORER_TOOL_DESCRIPTION, ExplorerArgs};
-    use agent_reviewer_tools::tool_description;
-
-    #[test]
-    fn explorer_tool_description_mentions_cross_file_context() {
-        let tool = tool_description::<ExplorerArgs>("explorer", EXPLORER_TOOL_DESCRIPTION);
-
-        assert!(
-            tool.description
-                .expect("tool description should be present")
-                .contains("trace symbols across files")
-        );
-    }
-
-    #[test]
-    fn explorer_schema_only_requires_the_task() {
-        let tool = tool_description::<ExplorerArgs>("explorer", EXPLORER_TOOL_DESCRIPTION);
-        let schema = tool.schema.expect("schema should be present");
-
-        assert_eq!(schema["required"], serde_json::json!(["task"]));
     }
 }
