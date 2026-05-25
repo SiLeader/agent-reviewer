@@ -9,8 +9,9 @@ Agent Reviewer is an LLM-driven code review pipeline written in Rust. It inspect
 - **Multiple providers** — OpenAI, Anthropic, GitHub Models, and Amazon Bedrock via [`genai`](https://crates.io/crates/genai).
 - **Tiered review models** — each review unit picks a `Light`, `Standard`, or `Power` agent so simple changes use cheaper models and risky ones use the most capable.
 - **Built-in tools** — filesystem listing/reading/search and Git diff/branch inspection are exposed to agents out of the box.
-- **Explorer subagent** — a wrapped ReAct agent that the outer reviewers can call as a tool to investigate cross-file context.
-- **Customizable prompts** — sensible defaults are embedded in the binary; any phase's system or user template can be overridden by file path.
+- **Explorer and advisor subagents** — wrapped ReAct agents that reviewers can call as tools for cross-file exploration and focused implementation advice.
+- **Normal and security review modes** — the default profile runs a general code review; `--security-review` switches to security-focused prompts and result schemas.
+- **Customizable prompts** — sensible normal and security defaults are embedded in the binary; any phase's system or user template can be overridden by file path.
 - **Concurrency limiter** — a single semaphore caps total in-flight LLM requests across all phases and subagents.
 
 ## Installation
@@ -36,6 +37,7 @@ RUST_LOG=info cargo run --release -- --output review.md
 ```
 
 The command inspects the current Git context, runs the pipeline, and writes the final Markdown review to `review.md` (or stdout if `--output` is omitted).
+Add `--security-review` to run the security-focused prompt profile and final report schema.
 
 ## CLI
 
@@ -48,6 +50,7 @@ agent-reviewer [OPTIONS] [PROMPT]
 | `-c`, `--config <PATH>` | Path to the TOML config file. Defaults to `agent-reviewer.toml`. |
 | `-o`, `--output <FILE>` | File to write the final review to. Prints to stdout when omitted. |
 | `-a`, `--allow-output-fallback-to-stdout` | If writing to `--output` fails, print to stdout instead of exiting with an error. |
+| `-s`, `--security-review` | Run the security review profile instead of the normal code review profile. |
 | `-i`, `--id <ID>` | Reuse a specific session id. A UUID is generated when omitted. |
 | `[PROMPT]` | Optional free-form instruction passed to the triage step. |
 
@@ -95,12 +98,22 @@ effort = "high"
 # max_loops = 20
 
 # 4. Pipeline step -> agent bindings
-[steps]
-triage_agent          = "light"
-review_light_agent    = "light"
-review_standard_agent = "standard"
-review_power_agent    = "power"
-finalize_agent        = "power"
+[steps.triage]
+agent = "light"
+
+[steps.review.light]
+main_agent = "light"
+advisor_agent = "standard"
+
+[steps.review.standard]
+main_agent = "standard"
+advisor_agent = "power"
+
+[steps.review.power]
+main_agent = "power"
+
+[steps.finalize]
+agent = "power"
 
 [subagent.explorer]
 agent = "light"
@@ -139,8 +152,10 @@ Only the first match is used. Add review-relevant guidance to whichever file alr
 ## How it works
 
 1. **Triage** — a single agent inspects the diff and emits a list of review units. Each unit carries a task description, focus files, and a desired review tier (`Light` / `Standard` / `Power`).
-2. **Review** — all units are dispatched to their tier's agent in parallel via `futures::future::join_all`. Agents may call the explorer subagent and the built-in filesystem/Git tools to gather additional context.
+2. **Review** — all units are dispatched to their tier's `main_agent` in parallel via `futures::future::join_all`. Agents may call the explorer subagent, an optional tier-specific advisor subagent, and the built-in filesystem/Git tools to gather additional context.
 3. **Finalize** — a single agent consumes every unit's structured result and produces the final Markdown report.
+
+When `--security-review` is set, the same three-phase pipeline runs with the embedded security triage, review, and finalize prompts. Review agents return security-specific structured fields such as overall risk, exploitability, impact, recommendations, assumptions, and unanswered security questions before final synthesis.
 
 Each phase ends when the model calls a *marker tool* (`submit_triage`, `submit_review`, `submit_review_result`). Marker tools have a schema but no execution body; their JSON arguments become the phase's return value. To change the output shape of a phase, edit the `#[derive(JsonSchema)]` struct that backs the marker — schemas are generated from Rust types.
 
