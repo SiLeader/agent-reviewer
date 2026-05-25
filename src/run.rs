@@ -16,7 +16,7 @@ use crate::Args;
 use crate::config::{Config, PromptConfig, StepsPromptConfig};
 use crate::instruction::load_instructions;
 use crate::orchestrator::{Orchestrator, ReviewedResultMarker};
-use crate::prompt::PromptManager;
+use crate::prompt::{PromptManager, PromptOverrides, PromptProfile};
 use agent_reviewer_agent::ConcurrencyLimiter;
 use agent_reviewer_agent::builder::ReActAgentBuilder;
 use agent_reviewer_model_provider::{ModelConfig, ModelProviderConfig, WithProviderConfig};
@@ -28,7 +28,12 @@ pub(crate) async fn run<R>(args: Args, config: Config)
 where
     R: ReviewedResultMarker,
 {
-    let prompts = match load_prompt::<R>(&config.prompt) {
+    let prompt_profile = if args.security_review {
+        PromptProfile::Security
+    } else {
+        PromptProfile::Normal
+    };
+    let prompts = match load_prompt::<R>(&config.prompt, prompt_profile) {
         Ok(p) => p,
         Err(e) => {
             tracing::error!("Failed to load prompt: {}", e);
@@ -86,7 +91,10 @@ where
     }
 }
 
-fn load_prompt<R>(config: &StepsPromptConfig) -> anyhow::Result<PromptManager<R>>
+fn load_prompt<R>(
+    config: &StepsPromptConfig,
+    profile: PromptProfile,
+) -> anyhow::Result<PromptManager<R>>
 where
     R: Serialize,
 {
@@ -96,13 +104,16 @@ where
     let instructions = load_instructions();
 
     PromptManager::new(
-        instructions,
-        triage_system,
-        triage_user,
-        review_system,
-        review_user,
-        finalize_system,
-        finalize_user,
+        profile,
+        PromptOverrides {
+            instructions,
+            triage_system,
+            triage_user,
+            review_system,
+            review_user,
+            finalize_system,
+            finalize_user,
+        },
     )
 }
 

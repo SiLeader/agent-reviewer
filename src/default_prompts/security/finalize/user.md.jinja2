@@ -1,0 +1,75 @@
+{% if instructions %}
+Additional instructions:
+{{ instructions }}
+
+{% endif %}
+Security reviewer outputs:
+
+{% if reviews %}
+{% for review in reviews %}
+Review {{ loop.index }}:
+
+Summary:
+{{ review.summary }}
+
+Overall risk:
+{{ review.overall_risk }}
+
+Findings:
+{% if review.findings %}
+{% for finding in review.findings %}
+- Severity: {{ finding.severity }}
+  Category: {{ finding.category }}
+  Location: {% if finding.path %}{{ finding.path }}{% else %}unknown path{% endif %}{% if finding.line %}:{{ finding.line }}{% endif %}
+  Title: {{ finding.title }}
+  Evidence: {{ finding.evidence }}
+{% if finding.attack_scenario %}
+  Attack scenario: {{ finding.attack_scenario }}
+{% endif %}
+  Impact: {{ finding.impact }}
+{% if finding.recommendation %}
+  Recommendation: {{ finding.recommendation }}
+{% endif %}
+{% if finding.cwe %}
+  CWE: {{ finding.cwe }}
+{% endif %}
+{% if finding.owasp %}
+  OWASP: {{ finding.owasp }}
+{% endif %}
+{% if finding.references %}
+  References:
+{% for reference in finding.references %}
+  - {{ reference }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% else %}
+- No actionable security findings.
+{% endif %}
+
+Assumptions:
+{% if review.assumptions %}
+{% for assumption in review.assumptions %}
+- {{ assumption }}
+{% endfor %}
+{% else %}
+- None.
+{% endif %}
+
+Unanswered questions:
+{% if review.unanswered_questions %}
+{% for question in review.unanswered_questions %}
+- {{ question }}
+{% endfor %}
+{% else %}
+- None.
+{% endif %}
+
+Confidence: {{ review.confidence }}
+
+{% endfor %}
+{% else %}
+No security reviewer outputs were provided.
+{% endif %}
+
+Synthesize these security outputs and call `submit_review_result`.
