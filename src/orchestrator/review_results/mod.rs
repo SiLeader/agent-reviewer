@@ -12,30 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::orchestrator::ReviewedResultMarker;
-use agent_reviewer_tools::{MarkerAgentTool, tool_description};
-use genai::chat::Tool;
+mod normal;
+mod security;
 
-pub(crate) struct SubmitReview<R> {
-    _marker: std::marker::PhantomData<R>,
-}
+use schemars::JsonSchema;
+use serde::Serialize;
+use serde::de::DeserializeOwned;
 
-impl<R> Default for SubmitReview<R>
-where
-    R: ReviewedResultMarker,
+pub(crate) use normal::*;
+pub(crate) use security::*;
+
+pub(crate) trait ReviewedResultMarker:
+    Serialize + DeserializeOwned + JsonSchema + Send + Sync + 'static
 {
-    fn default() -> Self {
-        Self {
-            _marker: std::marker::PhantomData,
-        }
-    }
-}
-
-impl<R> MarkerAgentTool for SubmitReview<R>
-where
-    R: ReviewedResultMarker,
-{
-    fn tool(&self) -> Tool {
-        tool_description::<R>("submit_review", "Submit review result")
-    }
 }

@@ -15,7 +15,7 @@
 use crate::Args;
 use crate::config::{Config, PromptConfig, StepsPromptConfig};
 use crate::instruction::load_instructions;
-use crate::orchestrator::{Orchestrator, Reviewable};
+use crate::orchestrator::{Orchestrator, ReviewedResultMarker};
 use crate::prompt::PromptManager;
 use agent_reviewer_agent::ConcurrencyLimiter;
 use agent_reviewer_agent::builder::ReActAgentBuilder;
@@ -26,7 +26,7 @@ use tracing::info;
 
 pub(crate) async fn run<R>(args: Args, config: Config)
 where
-    R: Reviewable,
+    R: ReviewedResultMarker,
 {
     let prompts = match load_prompt::<R>(&config.prompt) {
         Ok(p) => p,

@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use crate::config::{AgentModelConfig, StepsConfig, SubagentConfig};
-pub(crate) use crate::orchestrator::review_unit::*;
+pub(crate) use crate::orchestrator::review_results::*;
 use crate::orchestrator::submit_marker::{
-    SubmitReview, SubmitReviewArgs, SubmitReviewResult, SubmitReviewResultArgs, SubmitTriage,
-    SubmitTriageArgs,
+    ReviewModel, ReviewUnit, SubmitReview, SubmitReviewResult, SubmitReviewResultArgs,
+    SubmitTriage, SubmitTriageArgs,
 };
 use crate::prompt::PromptManager;
 use agent_reviewer_agent::ReActAgent;
@@ -36,7 +36,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
-mod review_unit;
+mod review_results;
 pub mod submit_marker;
 
 pub(crate) struct Orchestrator<R> {
@@ -72,7 +72,7 @@ fn get_ro_toolset(additional: &[Option<Arc<dyn AgentTool>>]) -> Vec<Arc<dyn Agen
 
 impl<R> Orchestrator<R>
 where
-    R: Reviewable,
+    R: ReviewedResultMarker,
 {
     pub fn new(
         prompts: PromptManager<R>,
@@ -153,13 +153,13 @@ where
             &self.steps.triage.agent,
             get_ro_toolset(&[Some(explorer.clone())]),
             vec![],
-            Some(Arc::new(SubmitTriage::<R>::default())),
+            Some(Arc::new(SubmitTriage)),
         )?;
         let system_prompt = self.prompts.render_triage_system()?;
         let user_prompt = self.prompts.render_triage_user(prompt)?;
         let result = agent.run(&system_prompt, &user_prompt).await?;
 
-        let result: SubmitTriageArgs<R> = serde_json::from_value(result)?;
+        let result: SubmitTriageArgs = serde_json::from_value(result)?;
         let results = join_all(
             result
                 .review_units
@@ -185,12 +185,8 @@ where
         Ok(result.review_result)
     }
 
-    async fn run_review(
-        &self,
-        unit: R,
-        explorer: Arc<Explorer>,
-    ) -> anyhow::Result<SubmitReviewArgs> {
-        let review_conf = match unit.model() {
+    async fn run_review(&self, unit: ReviewUnit, explorer: Arc<Explorer>) -> anyhow::Result<R> {
+        let review_conf = match unit.model {
             ReviewModel::Light => &self.steps.review.light,
             ReviewModel::Standard => &self.steps.review.standard,
             ReviewModel::Power => &self.steps.review.power,
@@ -212,12 +208,12 @@ where
             &review_conf.main_agent,
             get_ro_toolset(&[Some(explorer), advisor_agent]),
             vec![],
-            Some(Arc::new(SubmitReview)),
+            Some(Arc::new(SubmitReview::<R>::default())),
         )?;
         let system_prompt = self.prompts.render_review_system()?;
         let user_prompt = self.prompts.render_review_user(&unit)?;
         let result = agent.run(&system_prompt, &user_prompt).await?;
-        let result: SubmitReviewArgs = serde_json::from_value(result)?;
+        let result: R = serde_json::from_value(result)?;
         Ok(result)
     }
 }

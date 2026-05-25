@@ -12,40 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::orchestrator::review_unit::Reviewable;
 use agent_reviewer_tools::{MarkerAgentTool, tool_description};
 use genai::chat::Tool;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-pub(crate) struct SubmitTriage<R> {
-    _phantom: std::marker::PhantomData<R>,
-}
+pub(crate) struct SubmitTriage;
 
-impl<R> Default for SubmitTriage<R>
-where
-    R: Reviewable,
-{
-    fn default() -> Self {
-        Self {
-            _phantom: std::marker::PhantomData,
-        }
-    }
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ReviewModel {
+    Light,
+    Standard,
+    Power,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub(crate) struct SubmitTriageArgs<R> {
-    #[schemars(required, description = "The review units to submit.")]
-    pub review_units: Vec<R>,
+pub(crate) struct ReviewUnit {
+    #[schemars(required, description = "The task to review.")]
+    pub task: String,
+    #[schemars(required, description = "The files to focus on.")]
+    pub focus_files: Vec<String>,
+    #[schemars(required, description = "The model to use for the review.")]
+    pub model: ReviewModel,
 }
 
-impl<R> MarkerAgentTool for SubmitTriage<R>
-where
-    R: Reviewable,
-{
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub(crate) struct SubmitTriageArgs {
+    #[schemars(required, description = "The review units to submit.")]
+    pub review_units: Vec<ReviewUnit>,
+}
+
+impl MarkerAgentTool for SubmitTriage {
     fn tool(&self) -> Tool {
-        tool_description::<SubmitTriageArgs<R>>("submit_triage", "Submit triage result")
+        tool_description::<SubmitTriageArgs>("submit_triage", "Submit triage result")
     }
 }
 
@@ -53,11 +55,10 @@ where
 mod tests {
     use super::*;
     use crate::orchestrator::ReviewModel;
-    use crate::orchestrator::review_unit::ReviewUnit;
 
     #[test]
     fn deserializes_review_units_with_task_and_focus_files() {
-        let args: SubmitTriageArgs<ReviewUnit> = serde_json::from_value(serde_json::json!({
+        let args: SubmitTriageArgs = serde_json::from_value(serde_json::json!({
             "review_units": [
                 {
                     "task": "Review error handling in the CLI entrypoint",

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::orchestrator::submit_marker::SubmitReviewArgs;
+use crate::orchestrator::submit_marker::ReviewUnit;
 use minijinja::Environment;
 use serde::Serialize;
 
@@ -101,7 +101,7 @@ where
         )
     }
 
-    pub fn render_review_user(&self, ctx: &R) -> anyhow::Result<String> {
+    pub fn render_review_user(&self, ctx: &ReviewUnit) -> anyhow::Result<String> {
         self.render_impl(
             REVIEW_USER_KEY,
             &serde_json::json!({
@@ -111,7 +111,7 @@ where
         )
     }
 
-    pub fn render_finalize_user(&self, ctx: &[SubmitReviewArgs]) -> anyhow::Result<String> {
+    pub fn render_finalize_user(&self, ctx: &[R]) -> anyhow::Result<String> {
         self.render_impl(
             FINALIZE_USER_KEY,
             &serde_json::json!({
@@ -125,10 +125,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::orchestrator::submit_marker::{ReviewCategory, ReviewFinding, ReviewSeverity};
-    use crate::orchestrator::{ReviewModel, ReviewUnit};
+    use crate::orchestrator::submit_marker::ReviewModel;
+    use crate::orchestrator::{ReviewCategory, ReviewFinding, ReviewSeverity, SubmitReviewArgs};
 
-    fn default_prompt_manager() -> PromptManager<ReviewUnit> {
+    fn default_prompt_manager() -> PromptManager<SubmitReviewArgs> {
         PromptManager::new(
             Some("Prefer correctness issues over style comments.".to_string()),
             None,
