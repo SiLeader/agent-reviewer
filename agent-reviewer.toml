@@ -27,37 +27,35 @@ max_tokens = 10000
 [[agents]]
 id = "standard"
 model = "gpt-4.1-mini"
-effort = "medium"
 max_tokens = 10000
 
 [[agents]]
 id = "power"
 model = "gpt-4.1"
-effort = "high"
 max_tokens = 10000
 
 [steps]
 triage = {
-    agent = "light"
+    agent = "light",
 }
 review = {
     light = {
         main_agent = "light",
         adviser_agent = "standard",
-        verifier_agent = "light"
+        verifier_agent = "light",
     },
     standard = {
         main_agent = "standard",
         adviser_agent = "power",
-        verifier_agent = "standard"
+        verifier_agent = "standard",
     },
     power = {
         main_agent = "power",
-        verifier_agent = "power"
+        verifier_agent = "power",
     }
 }
 finalize = {
-    agent = "power"
+    agent = "power",
 }
 
 [subagent.explorer]

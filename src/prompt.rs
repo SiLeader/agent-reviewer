@@ -1,13 +1,28 @@
-use crate::orchestrator::submit_marker::{ReviewUnit, SubmitReviewArgs};
+// Copyright 2026- SiLeader (Cerussite).
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use crate::orchestrator::submit_marker::SubmitReviewArgs;
 use minijinja::Environment;
 use serde::Serialize;
 
-pub(crate) struct PromptManager {
+pub(crate) struct PromptManager<R> {
     instructions: Option<String>,
     templates: Environment<'static>,
     triage_system: String,
     review_system: String,
     finalize_system: String,
+    _phantom: std::marker::PhantomData<R>,
 }
 
 const TRIAGE_USER_KEY: &str = "triage_user";
@@ -21,7 +36,10 @@ const DEFAULT_REVIEW_USER: &str = include_str!("default_prompts/review/user.md.j
 const DEFAULT_FINALIZE_SYSTEM: &str = include_str!("default_prompts/finalize/system.md");
 const DEFAULT_FINALIZE_USER: &str = include_str!("default_prompts/finalize/user.md.jinja2");
 
-impl PromptManager {
+impl<R> PromptManager<R>
+where
+    R: Serialize,
+{
     pub fn new(
         instructions: Option<String>,
         triage_system: Option<String>,
@@ -52,6 +70,7 @@ impl PromptManager {
             triage_system: triage_system.unwrap_or_else(|| DEFAULT_TRIAGE_SYSTEM.to_string()),
             review_system: review_system.unwrap_or_else(|| DEFAULT_REVIEW_SYSTEM.to_string()),
             finalize_system: finalize_system.unwrap_or_else(|| DEFAULT_FINALIZE_SYSTEM.to_string()),
+            _phantom: std::marker::PhantomData,
         })
     }
 
@@ -82,7 +101,7 @@ impl PromptManager {
         )
     }
 
-    pub fn render_review_user(&self, ctx: &ReviewUnit) -> anyhow::Result<String> {
+    pub fn render_review_user(&self, ctx: &R) -> anyhow::Result<String> {
         self.render_impl(
             REVIEW_USER_KEY,
             &serde_json::json!({
@@ -106,11 +125,10 @@ impl PromptManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::orchestrator::submit_marker::{
-        ReviewCategory, ReviewFinding, ReviewModel, ReviewSeverity,
-    };
+    use crate::orchestrator::submit_marker::{ReviewCategory, ReviewFinding, ReviewSeverity};
+    use crate::orchestrator::{ReviewModel, ReviewUnit};
 
-    fn default_prompt_manager() -> PromptManager {
+    fn default_prompt_manager() -> PromptManager<ReviewUnit> {
         PromptManager::new(
             Some("Prefer correctness issues over style comments.".to_string()),
             None,
