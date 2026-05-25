@@ -16,7 +16,7 @@ name: Run tests and lints
 on:
   pull_request:
     branches:
-      - main
+      - master
     types:
       - opened
       - ready_for_review
