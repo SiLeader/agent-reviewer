@@ -1,15 +1,10 @@
 use crate::ReActAgent;
-use agent_reviewer_tools::fs::{ListFiles, ReadFile, SearchFile};
-use agent_reviewer_tools::git::{
-    GitCurrentBranch, GitDefaultBranch, GitDiffCommitRange, GitDiffSingleCommit,
-    GitDiffSummaryCommitRange, GitDiffSummarySingleCommit, GitPrBaseBranch,
-};
+use crate::tools::subagent::{run_subagent, setup_tools};
 use agent_reviewer_tools::{AgentTool, MarkerAgentTool, tool_description};
 use genai::chat::Tool;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::sync::Arc;
 
 const EXPLORER_TOOL_DESCRIPTION: &str = "Delegate repository exploration when you need broader context than a single diff or file provides. Use this to trace symbols across files, find related tests or configuration, and map changed files to the code that actually drives behavior.";
 const EXPLORER_SYSTEM_PROMPT: &str = "You are a code explorer. Investigate the repository on behalf of another agent. Read only the files needed to answer the task, trace relationships across modules when useful, and finish by calling submit exactly once with the most relevant files, ranges, relationships, unanswered questions, and a confidence score.";
@@ -69,7 +64,7 @@ struct Constraints {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-struct RepoContext {
+pub(super) struct RepoContext {
     #[schemars(
         required,
         description = "Optional primary programming language for the area being explored."
@@ -153,19 +148,7 @@ impl MarkerAgentTool for Submit {
 
 impl From<ReActAgent> for Explorer {
     fn from(mut agent: ReActAgent) -> Self {
-        agent.tools.add_tool(Arc::new(ReadFile));
-        agent.tools.add_tool(Arc::new(ListFiles));
-        agent.tools.add_tool(Arc::new(SearchFile));
-        agent.tools.add_tool(Arc::new(GitDiffSingleCommit));
-        agent.tools.add_tool(Arc::new(GitDiffCommitRange));
-        agent.tools.add_tool(Arc::new(GitDiffSummarySingleCommit));
-        agent.tools.add_tool(Arc::new(GitDiffSummaryCommitRange));
-        agent.tools.add_tool(Arc::new(GitPrBaseBranch));
-        agent.tools.add_tool(Arc::new(GitDefaultBranch));
-        agent.tools.add_tool(Arc::new(GitCurrentBranch));
-        agent.tools.add_marker(Arc::new(Submit));
-        agent.submit_tool_name = Submit.tool().name.to_string();
-
+        setup_tools(&mut agent, Submit);
         Self { agent }
     }
 }
@@ -177,11 +160,7 @@ impl AgentTool for Explorer {
     }
 
     async fn run(&self, args: &Value) -> anyhow::Result<String> {
-        let value = self
-            .agent
-            .run(EXPLORER_SYSTEM_PROMPT, &args.to_string())
-            .await?;
-        Ok(value.to_string())
+        run_subagent(&self.agent, EXPLORER_SYSTEM_PROMPT, args).await
     }
 }
 

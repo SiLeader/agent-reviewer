@@ -10,34 +10,55 @@ model = "openai/gpt-4.1"
 provider = "github"
 
 [[models]]
-id = "gpt-5-mini"
-model = "openai/gpt-5-mini"
+id = "gpt-4.1-mini"
+model = "openai/gpt-4.1-mini"
+provider = "github"
+
+[[models]]
+id = "gpt-4.1-nano"
+model = "openai/gpt-4.1-nano"
 provider = "github"
 
 [[agents]]
 id = "light"
-model = "gpt-5-mini"
-effort = "low"
-max_tokens = 3000
+model = "gpt-4.1-nano"
+max_tokens = 10000
 
 [[agents]]
 id = "standard"
-model = "gpt-5-mini"
+model = "gpt-4.1-mini"
 effort = "medium"
-max_tokens = 2000
+max_tokens = 10000
 
 [[agents]]
 id = "power"
-model = "gpt-5-mini"
+model = "gpt-4.1"
 effort = "high"
-max_tokens = 1000
+max_tokens = 10000
 
 [steps]
-triage_agent = "light"
-review_light_agent = "light"
-review_standard_agent = "standard"
-review_power_agent = "power"
-finalize_agent = "power"
+triage = {
+    agent = "light"
+}
+review = {
+    light = {
+        main_agent = "light",
+        adviser_agent = "standard",
+        verifier_agent = "light"
+    },
+    standard = {
+        main_agent = "standard",
+        adviser_agent = "power",
+        verifier_agent = "standard"
+    },
+    power = {
+        main_agent = "power",
+        verifier_agent = "power"
+    }
+}
+finalize = {
+    agent = "power"
+}
 
 [subagent.explorer]
 agent = "light"

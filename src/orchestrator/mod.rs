@@ -6,7 +6,7 @@ use crate::orchestrator::submit_marker::{
 use crate::prompt::PromptManager;
 use agent_reviewer_agent::ReActAgent;
 use agent_reviewer_agent::builder::ReActAgentBuilder;
-use agent_reviewer_agent::tools::subagent::Explorer;
+use agent_reviewer_agent::tools::subagent::{Advisor, Explorer};
 use agent_reviewer_model_provider::ModelConfig;
 use agent_reviewer_tools::fs::{ListFiles, ReadFile, SearchFile};
 use agent_reviewer_tools::git::{
@@ -34,6 +34,25 @@ pub(crate) struct Orchestrator {
 
 const DEFAULT_MAX_LOOP_COUNT: usize = 6;
 const DEFAULT_MAX_TOKENS: u32 = 1000;
+
+fn get_ro_toolset(additional: &[Option<Arc<dyn AgentTool>>]) -> Vec<Arc<dyn AgentTool>> {
+    let mut tools: Vec<Arc<dyn AgentTool>> = vec![
+        Arc::new(ReadFile),
+        Arc::new(ListFiles),
+        Arc::new(SearchFile),
+        Arc::new(GitDiffSingleCommit),
+        Arc::new(GitDiffCommitRange),
+        Arc::new(GitDiffSummarySingleCommit),
+        Arc::new(GitDiffSummaryCommitRange),
+        Arc::new(GitPrBaseBranch),
+        Arc::new(GitDefaultBranch),
+        Arc::new(GitCurrentBranch),
+    ];
+    for tool in additional.iter().flatten() {
+        tools.push(tool.clone());
+    }
+    tools
+}
 
 impl Orchestrator {
     pub fn new(
@@ -112,20 +131,8 @@ impl Orchestrator {
 
         let agent = self.build_agent(
             "triage",
-            &self.steps.triage_agent,
-            vec![
-                Arc::new(ReadFile),
-                Arc::new(ListFiles),
-                Arc::new(SearchFile),
-                Arc::new(GitDiffSingleCommit),
-                Arc::new(GitDiffCommitRange),
-                Arc::new(GitDiffSummarySingleCommit),
-                Arc::new(GitDiffSummaryCommitRange),
-                Arc::new(GitPrBaseBranch),
-                Arc::new(GitDefaultBranch),
-                Arc::new(GitCurrentBranch),
-                explorer.clone(),
-            ],
+            &self.steps.triage.agent,
+            get_ro_toolset(&[Some(explorer.clone())]),
             vec![],
             Some(Arc::new(SubmitTriage)),
         )?;
@@ -146,7 +153,7 @@ impl Orchestrator {
 
         let agent = self.build_agent(
             "finalize",
-            &self.steps.finalize_agent,
+            &self.steps.finalize.agent,
             vec![],
             vec![],
             Some(Arc::new(SubmitReviewResult)),
@@ -164,26 +171,27 @@ impl Orchestrator {
         unit: ReviewUnit,
         explorer: Arc<Explorer>,
     ) -> anyhow::Result<SubmitReviewArgs> {
+        let review_conf = match unit.model {
+            ReviewModel::Light => &self.steps.review.light,
+            ReviewModel::Standard => &self.steps.review.standard,
+            ReviewModel::Power => &self.steps.review.power,
+        };
+        let advisor_agent = if let Some(a) = &review_conf.advisor_agent {
+            Some(Arc::new(Advisor::from(self.build_agent(
+                "advisor",
+                a,
+                vec![],
+                vec![],
+                None,
+            )?)) as Arc<dyn AgentTool>)
+        } else {
+            None
+        };
+
         let agent = self.build_agent(
             "review",
-            match unit.model {
-                ReviewModel::Light => &self.steps.review_light_agent,
-                ReviewModel::Standard => &self.steps.review_standard_agent,
-                ReviewModel::Power => &self.steps.review_power_agent,
-            },
-            vec![
-                Arc::new(ReadFile),
-                Arc::new(ListFiles),
-                Arc::new(SearchFile),
-                Arc::new(GitDiffSingleCommit),
-                Arc::new(GitDiffCommitRange),
-                Arc::new(GitDiffSummarySingleCommit),
-                Arc::new(GitDiffSummaryCommitRange),
-                Arc::new(GitPrBaseBranch),
-                Arc::new(GitDefaultBranch),
-                Arc::new(GitCurrentBranch),
-                explorer,
-            ],
+            &review_conf.main_agent,
+            get_ro_toolset(&[Some(explorer), advisor_agent]),
             vec![],
             Some(Arc::new(SubmitReview)),
         )?;

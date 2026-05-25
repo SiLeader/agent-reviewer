@@ -17,11 +17,33 @@ pub(crate) struct Config {
 
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct StepsConfig {
-    pub(crate) triage_agent: String,
-    pub(crate) review_light_agent: String,
-    pub(crate) review_standard_agent: String,
-    pub(crate) review_power_agent: String,
-    pub(crate) finalize_agent: String,
+    pub(crate) triage: TriageStepConfig,
+    pub(crate) review: ReviewStepConfig,
+    pub(crate) finalize: FinalizeStepConfig,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct TriageStepConfig {
+    pub(crate) agent: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct ReviewStepConfig {
+    pub(crate) light: ReviewStepAgentConfig,
+    pub(crate) standard: ReviewStepAgentConfig,
+    pub(crate) power: ReviewStepAgentConfig,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct FinalizeStepConfig {
+    pub(crate) agent: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct ReviewStepAgentConfig {
+    pub(crate) main_agent: String,
+    pub(crate) advisor_agent: Option<String>,
+    // pub(crate) verifier_agent: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
