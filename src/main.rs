@@ -45,7 +45,7 @@ struct Args {
     #[arg(short, long, help = "Run the security review.")]
     security_review: bool,
 
-    #[arg(short, long, help = "Unique identifier for the review session")]
+    #[arg(short, long, help = "Session ID to use for saving the review steps.")]
     id: Option<String>,
 
     #[arg(help = "Prompt to use for the review step.")]
