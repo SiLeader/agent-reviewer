@@ -44,24 +44,29 @@ impl ReActAgentNote {
         }
     }
 
-    fn note_file(&self) -> PathBuf {
+    fn note_file(&self, step: usize, operation: &str) -> PathBuf {
         PathBuf::from(format!(
-            ".agent-reviewer/notes/{}/{}.txt",
-            self.session_id, self.agent_id
+            ".agent-reviewer/notes/{}/{}/{}-{}.txt",
+            self.session_id, self.agent_id, step, operation
         ))
     }
 
-    async fn open(&self) -> anyhow::Result<File> {
-        let path = self.note_file();
+    async fn open(&self, step: usize, operation: &str) -> anyhow::Result<File> {
+        let path = self.note_file(step, operation);
         if let Some(parent) = path.parent() {
             tokio::fs::create_dir_all(parent).await?;
         }
-        let file = File::create(path).await?;
+        let file = File::create_new(path).await?;
         Ok(file)
     }
 
-    pub async fn write(&self, new_note: String) -> anyhow::Result<()> {
-        let mut file = self.open().await?;
+    pub async fn write(
+        &self,
+        step: usize,
+        operation: &str,
+        new_note: String,
+    ) -> anyhow::Result<()> {
+        let mut file = self.open(step, operation).await?;
         file.write_all(new_note.as_bytes()).await?;
         file.write_all(b"\n").await?;
         file.flush().await?;

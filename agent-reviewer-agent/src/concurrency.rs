@@ -31,9 +31,4 @@ impl ConcurrencyLimiter {
         let sp = self.semaphore.acquire().await?;
         Ok(sp)
     }
-
-    pub async fn release(&self, permit: SemaphorePermit<'_>) -> anyhow::Result<()> {
-        permit.forget();
-        Ok(())
-    }
 }

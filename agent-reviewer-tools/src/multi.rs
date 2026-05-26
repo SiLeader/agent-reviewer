@@ -82,17 +82,17 @@ impl CompoundAgentTools {
             "Tool '{}' called with arguments: {}",
             call.fn_name, call.fn_arguments
         );
-        let start = std::time::Instant::now();
         let tool = match self.tools.get(&call.fn_name) {
             None => {
                 return format!("Unknown tool: {}", call.fn_name);
             }
             Some(t) => t,
         };
-        let fut = tool.run(&call.fn_arguments);
+        let start = std::time::Instant::now();
+        let res = tool.run(&call.fn_arguments).await;
         let duration = start.elapsed();
         info!("Tool '{}' completed in {:?}", call.fn_name, duration);
-        match fut.await {
+        match res {
             Ok(r) => r,
             Err(e) => format!("Error running tool '{}': {}", call.fn_name, e),
         }

@@ -124,7 +124,11 @@ impl ReActAgent {
                 messages.push(ChatMessage::user(self.step_worder(i)));
             }
             self.notes
-                .write(serde_json::to_string_pretty(&messages)?)
+                .write(
+                    i,
+                    "append-user-prompt",
+                    serde_json::to_string_pretty(&messages)?,
+                )
                 .await?;
 
             let request =
@@ -139,7 +143,11 @@ impl ReActAgent {
             let fut = self.tools.run_all(response.content.tool_calls());
             messages.push(ChatMessage::assistant(response.content.clone()));
             self.notes
-                .write(serde_json::to_string_pretty(&messages)?)
+                .write(
+                    i,
+                    "assistant-response",
+                    serde_json::to_string_pretty(&messages)?,
+                )
                 .await?;
 
             match fut.await {
@@ -157,7 +165,7 @@ impl ReActAgent {
                         ToolCallResponse::Called(tool_responses) => {
                             messages.push(tool_responses);
                             self.notes
-                                .write(serde_json::to_string_pretty(&messages)?)
+                                .write(i, "tool-called", serde_json::to_string_pretty(&messages)?)
                                 .await?;
                         }
                     }
@@ -165,7 +173,7 @@ impl ReActAgent {
                 ToolCallResponse::Called(tool_responses) => {
                     messages.push(tool_responses);
                     self.notes
-                        .write(serde_json::to_string_pretty(&messages)?)
+                        .write(i, "tool-called", serde_json::to_string_pretty(&messages)?)
                         .await?;
                 }
             }
