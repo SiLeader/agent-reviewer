@@ -14,7 +14,6 @@
 
 use crate::ReActAgent;
 use crate::concurrency::ConcurrencyLimiter;
-use crate::notes::ReActAgentNoteManager;
 use agent_reviewer_tools::{AgentTool, CompoundAgentTools, MarkerAgentTool};
 use genai::Client;
 use genai::chat::ChatOptions;
@@ -30,7 +29,6 @@ pub struct ReActAgentBuilder {
     options: Option<ChatOptions>,
     submit_tool_name: String,
     concurrency_limiter: ConcurrencyLimiter,
-    note_manager: ReActAgentNoteManager,
 }
 
 impl ReActAgentBuilder {
@@ -80,7 +78,7 @@ impl ReActAgentBuilder {
         self
     }
 
-    pub fn build(self, agent_id: String) -> ReActAgent {
+    pub fn build(self) -> ReActAgent {
         ReActAgent::new(
             self.model_name,
             self.client,
@@ -89,13 +87,12 @@ impl ReActAgentBuilder {
             self.submit_tool_name,
             self.options,
             self.concurrency_limiter,
-            self.note_manager.create_note(agent_id),
         )
     }
 }
 
 impl ReActAgentBuilder {
-    pub fn new(id: String, concurrency_limiter: ConcurrencyLimiter) -> Self {
+    pub fn new(concurrency_limiter: ConcurrencyLimiter) -> Self {
         Self {
             model_name: "".to_string(),
             client: Client::default(),
@@ -105,7 +102,6 @@ impl ReActAgentBuilder {
             options: None,
             submit_tool_name: "submit".to_string(),
             concurrency_limiter,
-            note_manager: ReActAgentNoteManager::new(id),
         }
     }
 }

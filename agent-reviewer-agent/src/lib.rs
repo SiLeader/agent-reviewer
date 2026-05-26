@@ -14,15 +14,13 @@
 
 pub mod builder;
 mod concurrency;
-mod notes;
 pub mod tools;
 
-use crate::notes::ReActAgentNote;
 use agent_reviewer_tools::{CompoundAgentTools, ToolCallResponse};
 pub use concurrency::ConcurrencyLimiter;
 use genai::Client;
 use genai::chat::{ChatMessage, ChatOptions, ChatRequest};
-use tracing::info;
+use tracing::{debug, info};
 
 pub struct ReActAgent {
     model_name: String,
@@ -32,15 +30,11 @@ pub struct ReActAgent {
     options: Option<ChatOptions>,
     submit_tool_name: String,
     concurrency_limiter: ConcurrencyLimiter,
-    notes: ReActAgentNote,
 }
 
 impl ReActAgent {
-    pub fn builder(
-        session_id: String,
-        concurrency_limiter: ConcurrencyLimiter,
-    ) -> builder::ReActAgentBuilder {
-        builder::ReActAgentBuilder::new(session_id, concurrency_limiter)
+    pub fn builder(concurrency_limiter: ConcurrencyLimiter) -> builder::ReActAgentBuilder {
+        builder::ReActAgentBuilder::new(concurrency_limiter)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -52,7 +46,6 @@ impl ReActAgent {
         submit_tool_name: String,
         options: Option<ChatOptions>,
         concurrency_limiter: ConcurrencyLimiter,
-        notes: ReActAgentNote,
     ) -> Self {
         Self {
             model_name,
@@ -62,7 +55,6 @@ impl ReActAgent {
             options,
             submit_tool_name,
             concurrency_limiter,
-            notes,
         }
     }
 
@@ -109,27 +101,19 @@ impl ReActAgent {
 
             let is_last_turn = i == self.max_loop_count;
 
-            if i == 1 {
-                messages.push(ChatMessage::user(format!(
-                    "{}\n{user_prompt}",
-                    self.step_worder(1)
-                )));
+            let user = if i == 1 {
+                ChatMessage::user(format!("{}\n{user_prompt}", self.step_worder(1)))
             } else if is_last_turn {
-                messages.push(ChatMessage::user(format!(
+                ChatMessage::user(format!(
                     "{}\nThis is the final step. Make sure to call the '{}' tool if you haven't already.",
                     self.step_worder(i),
                     self.submit_tool_name
-                )));
+                ))
             } else {
-                messages.push(ChatMessage::user(self.step_worder(i)));
-            }
-            self.notes
-                .write(
-                    i,
-                    "append-user-prompt",
-                    serde_json::to_string_pretty(&messages)?,
-                )
-                .await?;
+                ChatMessage::user(self.step_worder(i))
+            };
+            debug!("User message: {:?}", user);
+            messages.push(user);
 
             let request =
                 self.create_request(system_prompt.to_string(), messages.clone(), is_last_turn);
@@ -139,23 +123,17 @@ impl ReActAgent {
                     .exec_chat(&self.model_name, request, self.options.as_ref())
                     .await?
             };
+            debug!("Model response: {:?}", response);
 
             let fut = self.tools.run_all(response.content.tool_calls());
             messages.push(ChatMessage::assistant(response.content.clone()));
-            self.notes
-                .write(
-                    i,
-                    "assistant-response",
-                    serde_json::to_string_pretty(&messages)?,
-                )
-                .await?;
-
             match fut.await {
                 ToolCallResponse::MarkerFound { marker, non_marker } => {
                     if let Some(call) = marker
                         .iter()
                         .find(|call| call.fn_name == self.submit_tool_name)
                     {
+                        debug!("Marker tool call: {:?}", call);
                         return Ok(call.fn_arguments.clone());
                     }
                     match self.tools.run_all(non_marker).await {
@@ -163,18 +141,14 @@ impl ReActAgent {
                             unreachable!("Marker should not be found in non-marker calls");
                         }
                         ToolCallResponse::Called(tool_responses) => {
+                            debug!("Non-marker tool responses: {:?}", tool_responses);
                             messages.push(tool_responses);
-                            self.notes
-                                .write(i, "tool-called", serde_json::to_string_pretty(&messages)?)
-                                .await?;
                         }
                     }
                 }
                 ToolCallResponse::Called(tool_responses) => {
+                    debug!("Tool responses: {:?}", tool_responses);
                     messages.push(tool_responses);
-                    self.notes
-                        .write(i, "tool-called", serde_json::to_string_pretty(&messages)?)
-                        .await?;
                 }
             }
         }

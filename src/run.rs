@@ -48,11 +48,8 @@ where
             std::process::exit(1);
         }
     };
-    let session_id = args.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-    info!("Starting review session with ID: {}", session_id);
     let concurrency_limiter = ConcurrencyLimiter::new(config.concurrency);
-    let agent_builder =
-        ReActAgentBuilder::new(session_id, concurrency_limiter).override_client(client);
+    let agent_builder = ReActAgentBuilder::new(concurrency_limiter).override_client(client);
 
     let orchestrator = Orchestrator::new(
         prompts,

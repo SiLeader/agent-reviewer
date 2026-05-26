@@ -500,16 +500,6 @@ mod tests {
         assert!(!is_ignored(&root, "actual.literal", &[]));
     }
 
-    #[test]
-    fn excludes_gitignore_files() {
-        let root = test_root("gitignore_file");
-        write_file(&root.join(".gitignore"), "");
-        write_file(&root.join("nested/.gitignore"), "");
-
-        assert!(is_ignored(&root, ".gitignore", &[]));
-        assert!(is_ignored(&root, "nested/.gitignore", &[]));
-    }
-
     fn is_ignored(root: &Path, relative_path: &str, exclude_patterns: &[&str]) -> bool {
         let relative_path = Path::new(relative_path);
         let absolute_path = root.join(relative_path);

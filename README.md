@@ -60,7 +60,6 @@ agent-reviewer [OPTIONS] [PROMPT]
 | `-o`, `--output <FILE>`                   | File to write the final review to. Prints to stdout when omitted.                 |
 | `-a`, `--allow-output-fallback-to-stdout` | If writing to `--output` fails, print to stdout instead of exiting with an error. |
 | `-s`, `--security-review`                 | Run the security review profile instead of the normal code review profile.        |
-| `-i`, `--id <ID>`                         | Use for saving review session steps.                                              |
 | `[PROMPT]`                                | Optional free-form instruction passed to the triage step.                         |
 
 Logging verbosity is controlled by `RUST_LOG` (e.g. `RUST_LOG=info`, `RUST_LOG=debug`).

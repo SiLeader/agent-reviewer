@@ -29,12 +29,11 @@ use agent_reviewer_tools::git::{
     GitDiffSummaryCommitRange, GitDiffSummarySingleCommit, GitPrBaseBranch,
 };
 use agent_reviewer_tools::{AgentTool, MarkerAgentTool};
-use futures::future::{join_all, try_join_all};
+use futures::future::try_join_all;
 use genai::chat::ChatOptions;
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
-use uuid::Uuid;
 
 mod review_results;
 pub mod submit_marker;
@@ -103,7 +102,6 @@ where
 
     fn build_agent(
         &self,
-        agent_name: &str,
         id: &str,
         tools: Vec<Arc<dyn AgentTool>>,
         marker_tools: Vec<Arc<dyn MarkerAgentTool>>,
@@ -136,12 +134,11 @@ where
         } else {
             builder
         };
-        Ok(builder.build(format!("{agent_name}-{}", Uuid::now_v7())))
+        Ok(builder.build())
     }
 
     pub async fn run(&self, prompt: Option<String>) -> anyhow::Result<String> {
         let explorer = Arc::new(Explorer::from(self.build_agent(
-            "explorer",
             &self.subagent.explorer.agent,
             vec![],
             vec![],
@@ -149,7 +146,6 @@ where
         )?));
 
         let agent = self.build_agent(
-            "triage",
             &self.steps.triage.agent,
             get_ro_toolset(&[Some(explorer.clone())]),
             vec![],
@@ -169,7 +165,6 @@ where
         .await?;
 
         let agent = self.build_agent(
-            "finalize",
             &self.steps.finalize.agent,
             vec![],
             vec![],
@@ -190,19 +185,15 @@ where
             ReviewModel::Power => &self.steps.review.power,
         };
         let advisor_agent = if let Some(a) = &review_conf.advisor_agent {
-            Some(Arc::new(Advisor::from(self.build_agent(
-                "advisor",
-                a,
-                vec![],
-                vec![],
-                None,
-            )?)) as Arc<dyn AgentTool>)
+            Some(
+                Arc::new(Advisor::from(self.build_agent(a, vec![], vec![], None)?))
+                    as Arc<dyn AgentTool>,
+            )
         } else {
             None
         };
 
         let agent = self.build_agent(
-            "review",
             &review_conf.main_agent,
             get_ro_toolset(&[Some(explorer), advisor_agent]),
             vec![],
