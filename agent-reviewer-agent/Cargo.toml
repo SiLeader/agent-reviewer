@@ -33,5 +33,3 @@ schemars = { workspace = true }
 anyhow = { workspace = true }
 
 tracing = { workspace = true }
-
-uuid = { workspace = true, features = ["v7"] }
