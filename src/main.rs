@@ -12,11 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate agent_reviewer_agent;
-extern crate agent_reviewer_model_provider;
-extern crate agent_reviewer_tools;
-extern crate genai;
-
 use crate::orchestrator::{SubmitReviewArgs, SubmitSecurityReviewArgs};
 use clap::Parser;
 use std::path::Path;
@@ -49,9 +44,6 @@ struct Args {
 
     #[arg(short, long, help = "Run the security review.")]
     security_review: bool,
-
-    #[arg(short, long, help = "Unique identifier for the review session")]
-    id: Option<String>,
 
     #[arg(help = "Prompt to use for the review step.")]
     prompt: Option<String>,

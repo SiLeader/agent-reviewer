@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod ignore;
 mod list_files;
 mod read_file;
 mod search;
@@ -25,9 +26,19 @@ fn check_path_location(path: &str) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()
         .context("failed to get current directory")?
         .canonicalize()?;
-    let path = std::path::Path::new(path).canonicalize()?;
+    let path = std::path::Path::new(path);
+    if !path.exists() {
+        return Ok(());
+    }
+    let path = path.canonicalize()?;
     if !path.starts_with(cwd) {
         anyhow::bail!("access to path outside of current directory is not allowed");
     }
     Ok(())
+}
+
+#[cfg(test)]
+fn write_file(path: &std::path::Path, content: &str) {
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(path, content).unwrap();
 }

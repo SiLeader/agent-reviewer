@@ -42,16 +42,16 @@ review = {
     light = {
         main_agent = "light",
         advisor_agent = "standard",
-        verifier_agent = "light",
+        # verifier_agent = "light", # not yet supported
     },
     standard = {
         main_agent = "standard",
         advisor_agent = "power",
-        verifier_agent = "standard",
+        # verifier_agent = "standard", # not yet supported
     },
     power = {
         main_agent = "power",
-        verifier_agent = "power",
+        # verifier_agent = "power", # not yet supported
     }
 }
 finalize = {
