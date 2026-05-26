@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod ignore;
 mod list_files;
 mod read_file;
 mod search;
@@ -30,4 +31,10 @@ fn check_path_location(path: &str) -> anyhow::Result<()> {
         anyhow::bail!("access to path outside of current directory is not allowed");
     }
     Ok(())
+}
+
+#[cfg(test)]
+fn write_file(path: &std::path::Path, content: &str) {
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(path, content).unwrap();
 }
