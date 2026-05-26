@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::fs::check_path_location;
+use crate::fs::ignore::Ignore;
 use crate::fs::list_files::search_pattern;
 use crate::{AgentTool, tool_description};
 use anyhow::Context;
@@ -37,18 +38,18 @@ struct SearchFileArgs {
     root_dir: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct SearchFileResult {
     found_files: Vec<FoundFile>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct FoundFile {
     path: String,
     lines: Vec<FoundLine>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct FoundLine {
     line_number: usize,
     content: String,
@@ -71,6 +72,7 @@ impl AgentTool for SearchFile {
 
         let root_dir = tokio::fs::canonicalize(&root_dir).await?;
         let pattern = search_pattern(&root_dir, &args.file_pattern);
+        let mut ignore = Ignore::new(&root_dir, Vec::new());
 
         let mut tasks = Vec::new();
         for file in glob(&pattern)? {
@@ -86,13 +88,20 @@ impl AgentTool for SearchFile {
             let file = tokio::fs::canonicalize(&file)
                 .await
                 .with_context(|| format!("failed to resolve matched path {}", file.display()))?;
-            file.strip_prefix(&root_dir).with_context(|| {
-                format!(
-                    "matched path {} is outside root directory {}",
-                    file.display(),
-                    root_dir.display()
-                )
-            })?;
+            let relative_path = file
+                .strip_prefix(&root_dir)
+                .with_context(|| {
+                    format!(
+                        "matched path {} is outside root directory {}",
+                        file.display(),
+                        root_dir.display()
+                    )
+                })?
+                .to_path_buf();
+
+            if ignore.contains(&relative_path, &file)? {
+                continue;
+            }
 
             tasks.push(Self::find_impl(file, &args.words));
         }
@@ -131,5 +140,99 @@ impl SearchFile {
                 lines,
             })
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::fs::write_file;
+    use std::{
+        fs,
+        ops::Deref,
+        path::{Path, PathBuf},
+    };
+
+    #[tokio::test]
+    async fn skips_files_ignored_by_root_gitignore() {
+        let root = test_root("root_gitignore");
+        write_file(&root.join(".gitignore"), "*.log\n");
+        write_file(&root.join("keep.txt"), "needle\n");
+        write_file(&root.join("drop.log"), "needle\n");
+
+        let result = search(root.as_ref()).await;
+
+        assert_eq!(
+            paths(result),
+            vec![root.join("keep.txt").display().to_string()]
+        );
+    }
+
+    #[tokio::test]
+    async fn skips_files_ignored_by_nested_gitignore() {
+        let root = test_root("nested_gitignore");
+        write_file(&root.join("src/.gitignore"), "generated/\n");
+        write_file(&root.join("src/main.rs"), "needle\n");
+        write_file(&root.join("src/generated/out.rs"), "needle\n");
+
+        let result = search(root.as_ref()).await;
+
+        assert_eq!(
+            paths(result),
+            vec![root.join("src/main.rs").display().to_string()]
+        );
+    }
+
+    async fn search(root: &Path) -> SearchFileResult {
+        let args = serde_json::json!({
+            "words": ["needle"],
+            "file_pattern": "**/*",
+            "root_dir": root.to_string_lossy(),
+        });
+
+        serde_json::from_str(&SearchFile.run(&args).await.unwrap()).unwrap()
+    }
+
+    fn paths(result: SearchFileResult) -> Vec<String> {
+        let mut paths = result
+            .found_files
+            .into_iter()
+            .map(|file| file.path)
+            .collect::<Vec<_>>();
+        paths.sort();
+        paths
+    }
+
+    struct TestRoot(PathBuf);
+
+    impl AsRef<Path> for TestRoot {
+        fn as_ref(&self) -> &Path {
+            &self.0
+        }
+    }
+
+    impl Deref for TestRoot {
+        type Target = Path;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+
+    impl Drop for TestRoot {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn test_root(name: &str) -> TestRoot {
+        let root = std::env::current_dir()
+            .unwrap()
+            .join("target")
+            .join(format!("metsuke-search-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+
+        TestRoot(root)
     }
 }
