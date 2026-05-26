@@ -29,7 +29,7 @@ use agent_reviewer_tools::git::{
     GitDiffSummaryCommitRange, GitDiffSummarySingleCommit, GitPrBaseBranch,
 };
 use agent_reviewer_tools::{AgentTool, MarkerAgentTool};
-use futures::future::join_all;
+use futures::future::{join_all, try_join_all};
 use genai::chat::ChatOptions;
 use serde_json::json;
 use std::collections::HashMap;
@@ -49,7 +49,7 @@ pub(crate) struct Orchestrator<R> {
 }
 
 const DEFAULT_MAX_LOOP_COUNT: usize = 6;
-const DEFAULT_MAX_TOKENS: u32 = 1000;
+const DEFAULT_MAX_TOKENS: u32 = 50000;
 
 fn get_ro_toolset(additional: &[Option<Arc<dyn AgentTool>>]) -> Vec<Arc<dyn AgentTool>> {
     let mut tools: Vec<Arc<dyn AgentTool>> = vec![
@@ -141,7 +141,7 @@ where
 
     pub async fn run(&self, prompt: Option<String>) -> anyhow::Result<String> {
         let explorer = Arc::new(Explorer::from(self.build_agent(
-            "exporter",
+            "explorer",
             &self.subagent.explorer.agent,
             vec![],
             vec![],
@@ -160,15 +160,13 @@ where
         let result = agent.run(&system_prompt, &user_prompt).await?;
 
         let result: SubmitTriageArgs = serde_json::from_value(result)?;
-        let results = join_all(
+        let results = try_join_all(
             result
                 .review_units
                 .into_iter()
                 .map(|unit| self.run_review(unit, explorer.clone())),
         )
-        .await
-        .into_iter()
-        .collect::<anyhow::Result<Vec<_>>>()?;
+        .await?;
 
         let agent = self.build_agent(
             "finalize",

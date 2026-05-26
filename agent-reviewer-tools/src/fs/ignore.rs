@@ -40,11 +40,10 @@ impl Ignore {
         relative_path: &Path,
         absolute_path: &Path,
     ) -> anyhow::Result<bool> {
-        Ok(relative_path
-            .file_name()
-            .is_some_and(|name| name == ".gitignore")
-            || is_excluded_by_patterns(relative_path, absolute_path, &self.exclude_patterns)
-            || self.check_excluded_by_gitignore_and_update(relative_path)?)
+        Ok(
+            is_excluded_by_patterns(relative_path, absolute_path, &self.exclude_patterns)
+                || self.check_excluded_by_gitignore_and_update(relative_path)?,
+        )
     }
 
     fn check_excluded_by_gitignore_and_update(

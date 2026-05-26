@@ -15,6 +15,7 @@
 use std::path::PathBuf;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
+use uuid::Uuid;
 
 pub struct ReActAgentNote {
     session_id: String,
@@ -32,7 +33,10 @@ impl ReActAgentNoteManager {
     }
 
     pub fn create_note(&self, agent_id: String) -> ReActAgentNote {
-        ReActAgentNote::new(self.session_id.clone(), agent_id)
+        ReActAgentNote::new(
+            self.session_id.clone(),
+            format!("{}-{}", agent_id, Uuid::now_v7()),
+        )
     }
 }
 

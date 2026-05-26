@@ -29,7 +29,15 @@ pub struct SearchFile;
 
 #[derive(Debug, Deserialize, JsonSchema)]
 struct SearchFileArgs {
+    #[schemars(
+        required,
+        description = "Words to search for in the file content. At least one word is required."
+    )]
     words: Vec<String>,
+    #[schemars(
+        required,
+        description = "File pattern to match for search. Supports glob patterns."
+    )]
     file_pattern: String,
     #[schemars(
         required,

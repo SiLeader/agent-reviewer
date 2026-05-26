@@ -24,6 +24,9 @@ use tracing::debug;
 pub enum ModelBuilderError {
     #[error("Provider not found: {0}")]
     ProviderNotFound(String),
+
+    #[error("Invalid access key environment variable: {0}")]
+    InvalidAccessKeyEnv(String),
 }
 
 pub(crate) struct ProviderBuilder {
@@ -74,27 +77,33 @@ impl ProviderBuilder {
                 access_key_env,
                 secret_access_key_env,
                 region,
-            } => (
-                None,
-                AdapterKind::BedrockSigv4,
-                AuthData::MultiKeys(HashMap::from([
-                    (
-                        "aws_access_key_id".to_string(),
-                        std::env::var(access_key_env.as_deref().unwrap_or("AWS_ACCESS_KEY_ID"))
-                            .unwrap_or_default(),
-                    ),
-                    (
-                        "aws_secret_access_key".to_string(),
-                        std::env::var(
-                            secret_access_key_env
-                                .as_deref()
-                                .unwrap_or("AWS_SECRET_ACCESS_KEY"),
-                        )
-                        .unwrap_or_default(),
-                    ),
-                    ("aws_region".to_string(), region.clone()),
-                ])),
-            ),
+            } => {
+                let access_key_env = access_key_env.as_deref().unwrap_or("AWS_ACCESS_KEY_ID");
+                let secret_access_key_env = secret_access_key_env
+                    .as_deref()
+                    .unwrap_or("AWS_SECRET_ACCESS_KEY");
+                (
+                    None,
+                    AdapterKind::BedrockSigv4,
+                    AuthData::MultiKeys(HashMap::from([
+                        (
+                            "aws_access_key_id".to_string(),
+                            std::env::var(access_key_env).map_err(|_| {
+                                ModelBuilderError::InvalidAccessKeyEnv(access_key_env.to_string())
+                            })?,
+                        ),
+                        (
+                            "aws_secret_access_key".to_string(),
+                            std::env::var(secret_access_key_env).map_err(|_| {
+                                ModelBuilderError::InvalidAccessKeyEnv(
+                                    secret_access_key_env.to_string(),
+                                )
+                            })?,
+                        ),
+                        ("aws_region".to_string(), region.clone()),
+                    ])),
+                )
+            }
         };
         debug!(
             "Selected service target for '{}' with adapter: {:?}",
