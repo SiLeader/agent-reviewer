@@ -98,19 +98,18 @@ impl CompoundAgentTools {
         }
     }
 
-    pub async fn run_all<'a>(&self, calls: Vec<&'a ToolCall>) -> ToolCallResponse<'a> {
-        let (marker_calls, non_marker_calls): (Vec<_>, Vec<_>) = calls
+    pub fn separate_marker_and_non_marker<'a>(
+        &self,
+        calls: Vec<&'a ToolCall>,
+    ) -> (Vec<&'a ToolCall>, Vec<&'a ToolCall>) {
+        calls
             .into_iter()
-            .partition(|call| self.marker.contains(&call.fn_name));
+            .partition(|call| self.marker.contains(&call.fn_name))
+    }
 
-        if !marker_calls.is_empty() {
-            return ToolCallResponse::MarkerFound {
-                marker: marker_calls,
-                non_marker: non_marker_calls,
-            };
-        }
+    pub async fn run_all_non_markers(&self, calls: Vec<&ToolCall>) -> ChatMessage {
         let calls = join_all(
-            non_marker_calls
+            calls
                 .into_iter()
                 .map(|call| async { (call.call_id.clone(), self.run(call).await) }),
         )
@@ -118,8 +117,6 @@ impl CompoundAgentTools {
         .into_iter()
         .map(|(id, response)| ToolResponse::new(id, response))
         .collect::<Vec<_>>();
-        ToolCallResponse::Called(ChatMessage::tool(MessageContent::from_tool_responses(
-            calls,
-        )))
+        ChatMessage::tool(MessageContent::from_tool_responses(calls))
     }
 }

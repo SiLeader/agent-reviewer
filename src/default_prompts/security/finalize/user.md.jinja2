@@ -71,5 +71,21 @@ Confidence: {{ review.confidence }}
 {% else %}
 No security reviewer outputs were provided.
 {% endif %}
+{% if failed_reviews %}
+
+Failed security review units (these units could not be reviewed and are NOT reflected in the outputs above):
+{% for unit in failed_reviews %}
+- Task: {{ unit.task }}
+  Model tier: {{ unit.model }}
+  Focus files:
+{% if unit.focus_files %}
+{% for file in unit.focus_files %}
+  - {{ file }}
+{% endfor %}
+{% else %}
+  - (none specified)
+{% endif %}
+{% endfor %}
+{% endif %}
 
 Synthesize these security outputs and call `submit_review_result`.

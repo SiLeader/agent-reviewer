@@ -11,3 +11,4 @@ Guidelines:
 - If there are no actionable findings, say that clearly.
 - Include material unanswered questions or confidence caveats only when they matter.
 - Do not invent findings that were not supported by reviewer outputs.
+- If failed review units are listed, call out the uncovered areas at the end of the report so the reader knows the review is incomplete for those tasks and files. Do not speculate about findings inside the failed units.
