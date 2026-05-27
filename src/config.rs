@@ -27,6 +27,24 @@ pub(crate) struct Config {
     pub(crate) prompt: StepsPromptConfig,
     #[serde(default = "default_concurrency")]
     pub(crate) concurrency: usize,
+    #[serde(default)]
+    pub(crate) git: GitConfig,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub(crate) struct GitConfig {
+    #[serde(default)]
+    pub(crate) remote: GitRemoteConfig,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub(crate) struct GitRemoteConfig {
+    pub(crate) github: Option<GitHubConfig>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub(crate) struct GitHubConfig {
+    pub(crate) token_env: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

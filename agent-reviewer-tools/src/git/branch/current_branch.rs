@@ -37,7 +37,7 @@ impl AgentTool for GitCurrentBranch {
 
     async fn run(&self, _args: &Value) -> anyhow::Result<String> {
         tokio::task::spawn_blocking(|| {
-            let name = Git::new()?.current_branch()?;
+            let name = Git.current_branch()?;
             Ok(serde_json::to_string(&GitCurrentBranchResult {
                 branch_name: name,
             })?)

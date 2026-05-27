@@ -34,5 +34,7 @@ anyhow = { workspace = true }
 glob = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 git2 = { workspace = true }
+reqwest = { workspace = true, features = ["json"] }
+urlencoding = { workspace = true }
 
 tracing = { workspace = true }

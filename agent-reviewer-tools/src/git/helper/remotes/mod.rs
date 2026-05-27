@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub(super) mod github;
+pub mod github;
 
+#[async_trait::async_trait]
 pub(super) trait GitRemote {
-    fn get_default_branch(&self) -> anyhow::Result<String>;
-    fn get_pull_request_base_branch(&self) -> anyhow::Result<String>;
+    async fn get_default_branch(&self) -> anyhow::Result<String>;
+    async fn get_pull_request_base_branch(&self) -> anyhow::Result<String>;
 }
