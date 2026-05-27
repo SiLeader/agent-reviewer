@@ -85,6 +85,9 @@ impl GitHub {
         query: Option<BTreeMap<&str, &str>>,
     ) -> anyhow::Result<Res> {
         let holder = STATIC_INSTANCE.read().await;
+        if holder.token.is_empty() {
+            anyhow::bail!("Failed to request to GitHub: token is not set");
+        }
 
         let query = if let Some(query) = query {
             format!(
