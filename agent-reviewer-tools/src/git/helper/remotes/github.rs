@@ -14,15 +14,24 @@
 
 use crate::git::helper::Git;
 use crate::git::helper::remotes::GitRemote;
-use serde_json::json;
+use serde::de::DeserializeOwned;
+use std::collections::BTreeMap;
+use std::sync::LazyLock;
+use tokio::sync::RwLock;
 
 pub struct GitHub;
 
-impl Default for GitHub {
-    fn default() -> Self {
-        Self
-    }
+struct GitHubHolder {
+    base_url: String,
+    token: String,
 }
+
+static STATIC_INSTANCE: LazyLock<RwLock<GitHubHolder>> = LazyLock::new(|| {
+    RwLock::new(GitHubHolder {
+        base_url: "https://api.github.com".to_string(),
+        token: "".to_string(),
+    })
+});
 
 fn parse_owner_and_repo(remote: &str) -> Option<(String, String)> {
     if remote.starts_with("https://github.com/") {
@@ -41,7 +50,7 @@ fn parse_owner_and_repo(remote: &str) -> Option<(String, String)> {
 }
 
 fn get_remote() -> anyhow::Result<(String, String)> {
-    for remote in Git.get_remotes()? {
+    for remote in Git.get_remote_urls()? {
         if let Some((owner, repo)) = parse_owner_and_repo(&remote) {
             return Ok((owner, repo));
         }
@@ -65,15 +74,54 @@ struct GetPullRequestResponseBase {
     ref_name: String,
 }
 
+impl GitHub {
+    pub async fn set_token(&self, token: &str) {
+        STATIC_INSTANCE.write().await.token = token.trim_end_matches("/").to_string();
+    }
+
+    async fn reqeust_get<Res: DeserializeOwned>(
+        &self,
+        path: &str,
+        query: Option<BTreeMap<&str, &str>>,
+    ) -> anyhow::Result<Res> {
+        let holder = STATIC_INSTANCE.read().await;
+
+        let query = if let Some(query) = query {
+            format!(
+                "?{}",
+                query
+                    .into_iter()
+                    .map(|(k, v)| format!("{}={}", k, urlencoding::encode(v)))
+                    .collect::<Vec<_>>()
+                    .join("&")
+            )
+        } else {
+            "".to_string()
+        };
+
+        let client = reqwest::Client::new();
+        Ok(client
+            .get(format!(
+                "{}/{}{query}",
+                holder.base_url,
+                path.trim_start_matches('/')
+            ))
+            .bearer_auth(&holder.token)
+            .header("Accept", "application/vnd.github+json")
+            .header("X-GitHub-Api-Version", "2026-03-10")
+            .send()
+            .await?
+            .json()
+            .await?)
+    }
+}
+
 #[async_trait::async_trait]
 impl GitRemote for GitHub {
     async fn get_default_branch(&self) -> anyhow::Result<String> {
         let (owner, repo) = get_remote()?;
-        let res: GetRepoResponse = octocrab::instance()
-            .get(
-                format!("/repos/{owner}/{repo}"),
-                Option::<&serde_json::Value>::None,
-            )
+        let res: GetRepoResponse = self
+            .reqeust_get(&format!("/repos/{owner}/{repo}"), None)
             .await?;
         Ok(res.default_branch)
     }
@@ -82,10 +130,13 @@ impl GitRemote for GitHub {
         let current_branch = Git.current_branch()?;
         let (owner, repo) = get_remote()?;
 
-        let res: Vec<GetPullRequestResponse> = octocrab::instance()
-            .get(
-                format!("/repos/{owner}/{repo}/pulls",),
-                Some(&json!({"head": format!("{}:{}", owner, current_branch)})),
+        let res: Vec<GetPullRequestResponse> = self
+            .reqeust_get(
+                &format!("/repos/{owner}/{repo}/pulls"),
+                Some(BTreeMap::from([(
+                    "head",
+                    format!("{}:{}", owner, current_branch).as_str(),
+                )])),
             )
             .await?;
         let pr = res

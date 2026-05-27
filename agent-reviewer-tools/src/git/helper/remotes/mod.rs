@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub(in crate::git) mod github;
+pub mod github;
 
 #[async_trait::async_trait]
-pub(in crate::git) trait GitRemote {
+pub(super) trait GitRemote {
     async fn get_default_branch(&self) -> anyhow::Result<String>;
     async fn get_pull_request_base_branch(&self) -> anyhow::Result<String>;
 }

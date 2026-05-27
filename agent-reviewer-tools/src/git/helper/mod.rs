@@ -14,11 +14,11 @@
 
 use git2::{Diff, DiffOptions, Repository};
 use remotes::GitRemote;
-use remotes::github::GitHub;
 use serde::Serialize;
 use std::path::{Component, Path, PathBuf};
 
 mod remotes;
+pub use remotes::github::GitHub;
 
 #[derive(Debug, Serialize)]
 pub struct GitDiffResult {
@@ -78,17 +78,30 @@ impl Git {
         Ok(repo)
     }
 
-    fn get_remotes(&self) -> anyhow::Result<Vec<String>> {
-        let remotes = self.open_repo()?.remotes()?;
-        Ok(remotes
-            .into_iter()
-            .flatten()
-            .filter_map(|r| r.map(|s| s.to_string()))
-            .collect())
+    fn get_remote_urls(&self) -> anyhow::Result<Vec<String>> {
+        let repo = self.open_repo()?;
+        Self::remote_urls(&repo)
+    }
+
+    fn remote_urls(repo: &Repository) -> anyhow::Result<Vec<String>> {
+        let remotes = repo.remotes()?;
+        let mut urls = Vec::with_capacity(remotes.len());
+        for remote in remotes.into_iter().flatten() {
+            if let Some(remote) = remote
+                && let Ok(remote) = repo.find_remote(remote)
+            {
+                urls.push(remote.url()?.to_string());
+            }
+        }
+        Ok(urls)
     }
 
     pub fn current_branch(&self) -> anyhow::Result<String> {
         let repo = self.open_repo()?;
+        Self::current_branch_name(&repo)
+    }
+
+    fn current_branch_name(repo: &Repository) -> anyhow::Result<String> {
         let head = repo.head()?;
         let branch_name = head.shorthand()?;
         Ok(branch_name.to_string())
@@ -272,4 +285,115 @@ fn normalize_repo_relative_path(path: String) -> PathBuf {
             _ => None,
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use git2::{RepositoryInitOptions, Signature};
+    use std::fs;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    struct TempRepoDir {
+        path: PathBuf,
+    }
+
+    impl TempRepoDir {
+        fn new(test_name: &str) -> anyhow::Result<Self> {
+            static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
+
+            let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
+            let path = std::env::temp_dir().join(format!(
+                "agent-reviewer-tools-{test_name}-{}-{timestamp}-{}",
+                std::process::id(),
+                NEXT_ID.fetch_add(1, Ordering::Relaxed)
+            ));
+            fs::create_dir(&path)?;
+
+            Ok(Self { path })
+        }
+    }
+
+    impl Drop for TempRepoDir {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.path);
+        }
+    }
+
+    fn init_repo(initial_branch: &str) -> anyhow::Result<(TempRepoDir, Repository)> {
+        let dir = TempRepoDir::new("git-helper")?;
+        let mut opts = RepositoryInitOptions::new();
+        opts.initial_head(initial_branch);
+        let repo = Repository::init_opts(&dir.path, &opts)?;
+
+        Ok((dir, repo))
+    }
+
+    fn commit_file(repo: &Repository, path: &str, contents: &str) -> anyhow::Result<git2::Oid> {
+        let workdir = repo
+            .workdir()
+            .ok_or_else(|| anyhow::anyhow!("test repository must have a workdir"))?;
+        fs::write(workdir.join(path), contents)?;
+
+        let mut index = repo.index()?;
+        index.add_path(Path::new(path))?;
+        index.write()?;
+
+        let tree_id = index.write_tree()?;
+        let tree = repo.find_tree(tree_id)?;
+        let signature = Signature::now("Agent Reviewer", "agent-reviewer@example.com")?;
+        let oid = repo.commit(
+            Some("HEAD"),
+            &signature,
+            &signature,
+            "test commit",
+            &tree,
+            &[],
+        )?;
+
+        Ok(oid)
+    }
+
+    #[test]
+    fn current_branch_name_returns_initial_branch() -> anyhow::Result<()> {
+        let (_dir, repo) = init_repo("main")?;
+        commit_file(&repo, "README.md", "test")?;
+
+        assert_eq!(Git::current_branch_name(&repo)?, "main");
+
+        Ok(())
+    }
+
+    #[test]
+    fn current_branch_name_returns_checked_out_branch() -> anyhow::Result<()> {
+        let (_dir, repo) = init_repo("main")?;
+        let commit_id = commit_file(&repo, "README.md", "test")?;
+        let commit = repo.find_commit(commit_id)?;
+        repo.branch("feature/test", &commit, false)?;
+        repo.set_head("refs/heads/feature/test")?;
+
+        assert_eq!(Git::current_branch_name(&repo)?, "feature/test");
+
+        Ok(())
+    }
+
+    #[test]
+    fn remote_urls_returns_configured_urls_not_remote_names() -> anyhow::Result<()> {
+        let (_dir, repo) = init_repo("main")?;
+        repo.remote("origin", "git@github.com:owner/repo.git")?;
+        repo.remote("backup", "https://example.com/owner/repo.git")?;
+
+        let mut urls = Git::remote_urls(&repo)?;
+        urls.sort();
+        let mut expected = vec![
+            "git@github.com:owner/repo.git".to_string(),
+            "https://example.com/owner/repo.git".to_string(),
+        ];
+        expected.sort();
+
+        assert_eq!(urls, expected);
+
+        Ok(())
+    }
 }

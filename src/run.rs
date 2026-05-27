@@ -35,7 +35,7 @@ where
         PromptProfile::Normal
     };
 
-    if let Err(e) = setup_git_remotes(&config.git.remote) {
+    if let Err(e) = setup_git_remotes(&config.git.remote).await {
         tracing::error!("Failed to setup git remotes: {}", e);
         std::process::exit(1);
     }
