@@ -50,28 +50,77 @@ fn parse_owner_and_repo(remote: &str) -> Option<(String, String)> {
 }
 
 fn get_remote() -> anyhow::Result<(String, String)> {
+    get_remotes()?
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("Failed to find github remote"))
+}
+
+fn get_remotes() -> anyhow::Result<Vec<(String, String)>> {
+    let mut remotes = Vec::new();
     for remote in Git.get_remote_urls()? {
         if let Some((owner, repo)) = parse_owner_and_repo(&remote) {
-            return Ok((owner, repo));
+            remotes.push((owner, repo));
         }
     }
-    anyhow::bail!("Failed to find github remote")
+    Ok(remotes)
 }
 
 #[derive(serde::Deserialize)]
 struct GetRepoResponse {
     default_branch: String,
+    fork: bool,
+    parent: Option<GetRepoResponseParent>,
+}
+
+#[derive(serde::Deserialize)]
+struct GetRepoResponseParent {
+    full_name: String,
 }
 
 #[derive(serde::Deserialize)]
 struct GetPullRequestResponse {
     base: GetPullRequestResponseBase,
+    head: GetPullRequestResponseHead,
 }
 
 #[derive(serde::Deserialize)]
 struct GetPullRequestResponseBase {
     #[serde(rename = "ref")]
     ref_name: String,
+}
+
+#[derive(serde::Deserialize)]
+struct GetPullRequestResponseHead {
+    #[serde(rename = "ref")]
+    ref_name: String,
+}
+
+fn parse_full_name(full_name: &str) -> Option<(String, String)> {
+    let (owner, repo) = full_name.split_once('/')?;
+    Some((owner.to_string(), repo.to_string()))
+}
+
+fn pull_request_search_repositories(
+    head_owner: &str,
+    head_repo: &str,
+    repo: &GetRepoResponse,
+) -> Vec<(String, String)> {
+    let mut repositories = Vec::new();
+
+    if repo.fork
+        && let Some(parent) = &repo.parent
+        && let Some((base_owner, base_repo)) = parse_full_name(&parent.full_name)
+    {
+        repositories.push((base_owner, base_repo));
+    }
+
+    let head_repository = (head_owner.to_string(), head_repo.to_string());
+    if !repositories.contains(&head_repository) {
+        repositories.push(head_repository);
+    }
+
+    repositories
 }
 
 impl GitHub {
@@ -82,7 +131,7 @@ impl GitHub {
     async fn request_get<Res: DeserializeOwned>(
         &self,
         path: &str,
-        query: Option<BTreeMap<&str, &str>>,
+        query: Option<BTreeMap<&str, String>>,
     ) -> anyhow::Result<Res> {
         let holder = STATIC_INSTANCE.read().await;
         if holder.token.is_empty() {
@@ -94,7 +143,7 @@ impl GitHub {
                 "?{}",
                 query
                     .into_iter()
-                    .map(|(k, v)| format!("{}={}", k, urlencoding::encode(v)))
+                    .map(|(k, v)| format!("{}={}", k, urlencoding::encode(&v)))
                     .collect::<Vec<_>>()
                     .join("&")
             )
@@ -122,6 +171,74 @@ impl GitHub {
         }
         Ok(res.json().await?)
     }
+
+    async fn find_pull_request_for_branch(
+        &self,
+        current_branch: &str,
+    ) -> anyhow::Result<GetPullRequestResponse> {
+        let mut base_repositories = Vec::new();
+
+        for (head_owner, head_repo) in get_remotes()? {
+            let repo: GetRepoResponse = self
+                .request_get(&format!("/repos/{head_owner}/{head_repo}"), None)
+                .await?;
+            for (base_owner, base_repo) in
+                pull_request_search_repositories(&head_owner, &head_repo, &repo)
+            {
+                let base_repository = (base_owner.clone(), base_repo.clone());
+                if !base_repositories.contains(&base_repository) {
+                    base_repositories.push(base_repository);
+                }
+
+                let res: Vec<GetPullRequestResponse> = self
+                    .request_get(
+                        &format!("/repos/{base_owner}/{base_repo}/pulls"),
+                        Some(BTreeMap::from([
+                            ("head", format!("{}:{}", head_owner, current_branch)),
+                            ("state", "open".to_string()),
+                        ])),
+                    )
+                    .await?;
+
+                if let Some(pr) = res.into_iter().next() {
+                    return Ok(pr);
+                }
+            }
+        }
+
+        let mut branch_matches = Vec::new();
+        for (base_owner, base_repo) in base_repositories {
+            for page in 1..=10 {
+                let res: Vec<GetPullRequestResponse> = self
+                    .request_get(
+                        &format!("/repos/{base_owner}/{base_repo}/pulls"),
+                        Some(BTreeMap::from([
+                            ("state", "open".to_string()),
+                            ("per_page", "100".to_string()),
+                            ("page", page.to_string()),
+                        ])),
+                    )
+                    .await?;
+                let has_next_page = res.len() == 100;
+                branch_matches.extend(
+                    res.into_iter()
+                        .filter(|pr| pr.head.ref_name == current_branch),
+                );
+                if !has_next_page {
+                    break;
+                }
+            }
+        }
+
+        if branch_matches.len() == 1 {
+            return Ok(branch_matches.remove(0));
+        }
+        if branch_matches.len() > 1 {
+            anyhow::bail!("Multiple pull requests found for current branch");
+        }
+
+        anyhow::bail!("No pull request found for current branch")
+    }
 }
 
 #[async_trait::async_trait]
@@ -136,21 +253,8 @@ impl GitRemote for GitHub {
 
     async fn get_pull_request_base_branch(&self) -> anyhow::Result<String> {
         let current_branch = Git.current_branch()?;
-        let (owner, repo) = get_remote()?;
-
-        let res: Vec<GetPullRequestResponse> = self
-            .request_get(
-                &format!("/repos/{owner}/{repo}/pulls"),
-                Some(BTreeMap::from([(
-                    "head",
-                    format!("{}:{}", owner, current_branch).as_str(),
-                )])),
-            )
-            .await?;
-        let pr = res
-            .first()
-            .ok_or_else(|| anyhow::anyhow!("No pull request found for current branch"))?;
-        Ok(pr.base.ref_name.clone())
+        let pr = self.find_pull_request_for_branch(&current_branch).await?;
+        Ok(pr.base.ref_name)
     }
 }
 
@@ -179,5 +283,38 @@ mod tests {
             parse_owner_and_repo("git@github.com:ssh/no-suffix").expect("failed to parse");
         assert_eq!(owner, "ssh");
         assert_eq!(repo, "no-suffix");
+    }
+
+    #[test]
+    fn pull_request_search_repositories_prefers_fork_parent() {
+        let repo = GetRepoResponse {
+            default_branch: "main".to_string(),
+            fork: true,
+            parent: Some(GetRepoResponseParent {
+                full_name: "upstream/project".to_string(),
+            }),
+        };
+
+        assert_eq!(
+            pull_request_search_repositories("fork-owner", "project", &repo),
+            vec![
+                ("upstream".to_string(), "project".to_string()),
+                ("fork-owner".to_string(), "project".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn pull_request_search_repositories_uses_head_repository_for_non_fork() {
+        let repo = GetRepoResponse {
+            default_branch: "main".to_string(),
+            fork: false,
+            parent: None,
+        };
+
+        assert_eq!(
+            pull_request_search_repositories("owner", "project", &repo),
+            vec![("owner".to_string(), "project".to_string())]
+        );
     }
 }
