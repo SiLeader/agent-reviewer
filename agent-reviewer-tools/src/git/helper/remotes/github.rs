@@ -85,7 +85,7 @@ impl GitRemote for GitHub {
         let res: Vec<GetPullRequestResponse> = octocrab::instance()
             .get(
                 format!("/repos/{owner}/{repo}/pulls",),
-                Some(&json!({"head": current_branch})),
+                Some(&json!({"head": format!("{}:{}", owner, current_branch)})),
             )
             .await?;
         let pr = res
