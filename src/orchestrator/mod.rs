@@ -29,7 +29,7 @@ use agent_reviewer_tools::git::{
     GitDiffSummaryCommitRange, GitDiffSummarySingleCommit, GitPrBaseBranch,
 };
 use agent_reviewer_tools::{AgentTool, MarkerAgentTool};
-use futures::future::try_join_all;
+use futures::future::join_all;
 use genai::chat::ChatOptions;
 use serde_json::json;
 use std::collections::HashMap;
@@ -156,13 +156,28 @@ where
         let result = agent.run(&system_prompt, &user_prompt).await?;
 
         let result: SubmitTriageArgs = serde_json::from_value(result)?;
-        let results = try_join_all(
-            result
-                .review_units
-                .into_iter()
-                .map(|unit| self.run_review(unit, explorer.clone())),
-        )
-        .await?;
+        let results =
+            join_all(result.review_units.into_iter().map(|unit| async {
+                (unit.clone(), self.run_review(unit, explorer.clone()).await)
+            }))
+            .await;
+
+        let (successes, failures) = {
+            let mut successes = vec![];
+            let mut failures = vec![];
+            for (unit, result) in results {
+                match result {
+                    Ok(data) => {
+                        successes.push(data);
+                    }
+                    Err(err) => {
+                        tracing::error!("Error running review for unit {}: {}", unit.task, err);
+                        failures.push(unit);
+                    }
+                }
+            }
+            (successes, failures)
+        };
 
         let agent = self.build_agent(
             &self.steps.finalize.agent,
@@ -171,7 +186,7 @@ where
             Some(Arc::new(SubmitReviewResult)),
         )?;
         let system_prompt = self.prompts.render_finalize_system()?;
-        let user_prompt = self.prompts.render_finalize_user(&results)?;
+        let user_prompt = self.prompts.render_finalize_user(&successes, &failures)?;
         let result = agent.run(&system_prompt, &user_prompt).await?;
 
         let result: SubmitReviewResultArgs = serde_json::from_value(result)?;

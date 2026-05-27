@@ -181,12 +181,13 @@ where
         )
     }
 
-    pub fn render_finalize_user(&self, ctx: &[R]) -> anyhow::Result<String> {
+    pub fn render_finalize_user(&self, ctx: &[R], failed: &[ReviewUnit]) -> anyhow::Result<String> {
         self.render_impl(
             FINALIZE_USER_KEY,
             &serde_json::json!({
                 "instructions": self.instructions,
                 "reviews": ctx,
+                "failed_reviews": failed,
             }),
         )
     }
@@ -287,7 +288,7 @@ mod tests {
             confidence: 0.85,
         }];
 
-        let rendered = prompts.render_finalize_user(&reviews).unwrap();
+        let rendered = prompts.render_finalize_user(&reviews, &[]).unwrap();
 
         assert!(rendered.contains("Found one issue."));
         assert!(rendered.contains("high"));
@@ -343,7 +344,7 @@ mod tests {
             confidence: 0.8,
         }];
 
-        let rendered = prompts.render_finalize_user(&reviews).unwrap();
+        let rendered = prompts.render_finalize_user(&reviews, &[]).unwrap();
 
         assert!(rendered.contains("Found one externally reachable flaw."));
         assert!(rendered.contains("high"));
@@ -356,5 +357,72 @@ mod tests {
         assert!(rendered.contains("A01:2021-Broken Access Control"));
         assert!(rendered.contains("The endpoint is reachable by tenant users."));
         assert!(rendered.contains("submit_review_result"));
+    }
+
+    #[test]
+    fn renders_default_finalize_user_template_with_failed_reviews() {
+        let prompts = default_prompt_manager();
+        let reviews = vec![SubmitReviewArgs {
+            summary: "Found one issue.".to_string(),
+            findings: vec![],
+            unanswered_questions: vec![],
+            confidence: 0.9,
+        }];
+        let failed = vec![ReviewUnit {
+            task: "Review concurrency limiter wiring".to_string(),
+            focus_files: vec![
+                "agent-reviewer-agent/src/concurrency.rs".to_string(),
+                "agent-reviewer-agent/src/lib.rs".to_string(),
+            ],
+            model: ReviewModel::Power,
+        }];
+
+        let rendered = prompts.render_finalize_user(&reviews, &failed).unwrap();
+
+        assert!(rendered.contains("Failed review units"));
+        assert!(rendered.contains("Review concurrency limiter wiring"));
+        assert!(rendered.contains("agent-reviewer-agent/src/concurrency.rs"));
+        assert!(rendered.contains("agent-reviewer-agent/src/lib.rs"));
+        assert!(rendered.contains("power"));
+    }
+
+    #[test]
+    fn omits_failed_review_section_when_none_failed() {
+        let prompts = default_prompt_manager();
+        let reviews = vec![SubmitReviewArgs {
+            summary: "Found one issue.".to_string(),
+            findings: vec![],
+            unanswered_questions: vec![],
+            confidence: 0.9,
+        }];
+
+        let rendered = prompts.render_finalize_user(&reviews, &[]).unwrap();
+
+        assert!(!rendered.contains("Failed review units"));
+    }
+
+    #[test]
+    fn renders_default_security_finalize_user_template_with_failed_reviews() {
+        let prompts = default_security_prompt_manager();
+        let reviews = vec![SubmitSecurityReviewArgs {
+            summary: "No externally reachable flaws found.".to_string(),
+            overall_risk: SecurityRisk::Low,
+            findings: vec![],
+            assumptions: vec![],
+            unanswered_questions: vec![],
+            confidence: 0.7,
+        }];
+        let failed = vec![ReviewUnit {
+            task: "Audit secret handling in provider builder".to_string(),
+            focus_files: vec!["agent-reviewer-model-provider/src/builder.rs".to_string()],
+            model: ReviewModel::Standard,
+        }];
+
+        let rendered = prompts.render_finalize_user(&reviews, &failed).unwrap();
+
+        assert!(rendered.contains("Failed security review units"));
+        assert!(rendered.contains("Audit secret handling in provider builder"));
+        assert!(rendered.contains("agent-reviewer-model-provider/src/builder.rs"));
+        assert!(rendered.contains("standard"));
     }
 }

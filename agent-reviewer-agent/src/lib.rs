@@ -16,7 +16,7 @@ pub mod builder;
 mod concurrency;
 pub mod tools;
 
-use agent_reviewer_tools::{CompoundAgentTools, ToolCallResponse};
+use agent_reviewer_tools::CompoundAgentTools;
 pub use concurrency::ConcurrencyLimiter;
 use genai::Client;
 use genai::chat::{ChatMessage, ChatOptions, ChatRequest};
@@ -125,32 +125,19 @@ impl ReActAgent {
             };
             debug!("Model response: {:?}", response);
 
-            let fut = self.tools.run_all(response.content.tool_calls());
             messages.push(ChatMessage::assistant(response.content.clone()));
-            match fut.await {
-                ToolCallResponse::MarkerFound { marker, non_marker } => {
-                    if let Some(call) = marker
-                        .iter()
-                        .find(|call| call.fn_name == self.submit_tool_name)
-                    {
-                        debug!("Marker tool call: {:?}", call);
-                        return Ok(call.fn_arguments.clone());
-                    }
-                    match self.tools.run_all(non_marker).await {
-                        ToolCallResponse::MarkerFound { .. } => {
-                            unreachable!("Marker should not be found in non-marker calls");
-                        }
-                        ToolCallResponse::Called(tool_responses) => {
-                            debug!("Non-marker tool responses: {:?}", tool_responses);
-                            messages.push(tool_responses);
-                        }
-                    }
-                }
-                ToolCallResponse::Called(tool_responses) => {
-                    debug!("Tool responses: {:?}", tool_responses);
-                    messages.push(tool_responses);
-                }
+
+            let (markers, non_markers) = self
+                .tools
+                .separate_marker_and_non_marker(response.content.tool_calls());
+            if let Some(call) = markers
+                .iter()
+                .find(|call| call.fn_name == self.submit_tool_name)
+            {
+                debug!("Marker tool call: {:?}", call);
+                return Ok(call.fn_arguments.clone());
             }
+            messages.push(self.tools.run_all_non_markers(non_markers).await);
         }
         anyhow::bail!("Exceeded max loop count")
     }

@@ -13,3 +13,4 @@ Guidelines:
 - If there are no actionable security findings, say that clearly and mention material assumptions or remaining uncertainty.
 - Include material unanswered questions or confidence caveats only when they matter.
 - Do not invent findings that were not supported by reviewer outputs.
+- If failed security review units are listed, call out the uncovered attack surface at the end of the report so the reader knows the security review is incomplete for those tasks and files. Do not speculate about findings inside the failed units.

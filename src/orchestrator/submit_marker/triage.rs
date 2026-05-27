@@ -27,7 +27,7 @@ pub(crate) enum ReviewModel {
     Power,
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub(crate) struct ReviewUnit {
     #[schemars(required, description = "The task to review.")]
