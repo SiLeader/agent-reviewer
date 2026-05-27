@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::git::remotes::GitRemote;
-use crate::git::remotes::github::GitHub;
 use git2::{Diff, DiffOptions, Repository};
+use remotes::GitRemote;
+use remotes::github::GitHub;
 use serde::Serialize;
 use std::path::{Component, Path, PathBuf};
+
+mod remotes;
 
 #[derive(Debug, Serialize)]
 pub struct GitDiffResult {
@@ -68,28 +70,36 @@ pub enum FileStatus {
     Renamed,
 }
 
-pub(super) struct Git {
-    repo: Repository,
-}
+pub(super) struct Git;
 
 impl Git {
-    pub fn new() -> anyhow::Result<Self> {
+    fn open_repo(&self) -> anyhow::Result<Repository> {
         let repo = Repository::open(".")?;
-        Ok(Self { repo })
+        Ok(repo)
+    }
+
+    fn get_remotes(&self) -> anyhow::Result<Vec<String>> {
+        let remotes = self.open_repo()?.remotes()?;
+        Ok(remotes
+            .into_iter()
+            .flatten()
+            .filter_map(|r| r.map(|s| s.to_string()))
+            .collect())
     }
 
     pub fn current_branch(&self) -> anyhow::Result<String> {
-        let head = self.repo.head()?;
+        let repo = self.open_repo()?;
+        let head = repo.head()?;
         let branch_name = head.shorthand()?;
         Ok(branch_name.to_string())
     }
 
-    pub fn default_branch(&self) -> anyhow::Result<String> {
-        GitHub.get_default_branch()
+    pub async fn default_branch(&self) -> anyhow::Result<String> {
+        GitHub.get_default_branch().await
     }
 
-    pub fn get_pr_default_branch(&self) -> anyhow::Result<String> {
-        GitHub.get_pull_request_base_branch()
+    pub async fn get_pr_default_branch(&self) -> anyhow::Result<String> {
+        GitHub.get_pull_request_base_branch().await
     }
 
     pub fn diff_single_commit(
@@ -98,12 +108,13 @@ impl Git {
         files: Option<Vec<String>>,
         summary: bool,
     ) -> anyhow::Result<GitDiffResult> {
-        let oid = self.repo.revparse_single(&commit_id)?.id();
-        let commit = self.repo.find_commit(oid)?;
+        let repo = self.open_repo()?;
+        let oid = repo.revparse_single(&commit_id)?.id();
+        let commit = repo.find_commit(oid)?;
         let head = commit.tree()?;
         let base = commit.parent(0).ok().map(|p| p.tree()).transpose()?;
 
-        let diff = self.repo.diff_tree_to_tree(
+        let diff = repo.diff_tree_to_tree(
             base.as_ref(),
             Some(&head),
             Some(&mut DiffOptions::default()),
@@ -119,13 +130,11 @@ impl Git {
         files: Option<Vec<String>>,
         summary: bool,
     ) -> anyhow::Result<GitDiffResult> {
-        let from = self.repo.revparse_single(&from)?.peel_to_tree()?;
-        let to = self.repo.revparse_single(&to)?.peel_to_tree()?;
-        let diff = self.repo.diff_tree_to_tree(
-            Some(&from),
-            Some(&to),
-            Some(&mut DiffOptions::default()),
-        )?;
+        let repo = self.open_repo()?;
+        let from = repo.revparse_single(&from)?.peel_to_tree()?;
+        let to = repo.revparse_single(&to)?.peel_to_tree()?;
+        let diff =
+            repo.diff_tree_to_tree(Some(&from), Some(&to), Some(&mut DiffOptions::default()))?;
         Self::diff_to_result(&diff, files, summary)
     }
 

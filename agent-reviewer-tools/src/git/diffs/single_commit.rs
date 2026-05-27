@@ -47,8 +47,7 @@ impl AgentTool for GitDiffSingleCommit {
         let args: GitDiffSingleCommitArgs = serde_json::from_value(args.clone())?;
 
         tokio::task::spawn_blocking(|| {
-            let git = Git::new()?;
-            let diff = git.diff_single_commit(args.commit_id, args.files, false)?;
+            let diff = Git.diff_single_commit(args.commit_id, args.files, false)?;
 
             Ok(serde_json::to_string(&diff)?)
         })
@@ -69,8 +68,7 @@ impl AgentTool for GitDiffSummarySingleCommit {
         let args: GitDiffSingleCommitArgs = serde_json::from_value(args.clone())?;
 
         tokio::task::spawn_blocking(|| {
-            let git = Git::new()?;
-            let diff = git.diff_single_commit(args.commit_id, args.files, true)?;
+            let diff = Git.diff_single_commit(args.commit_id, args.files, true)?;
 
             Ok(serde_json::to_string(&diff)?)
         })

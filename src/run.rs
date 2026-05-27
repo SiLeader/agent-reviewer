@@ -14,6 +14,7 @@
 
 use crate::Args;
 use crate::config::{Config, PromptConfig, StepsPromptConfig};
+use crate::git_remotes::setup_git_remotes;
 use crate::instruction::load_instructions;
 use crate::orchestrator::{Orchestrator, ReviewedResultMarker};
 use crate::prompt::{PromptManager, PromptOverrides, PromptProfile};
@@ -33,6 +34,12 @@ where
     } else {
         PromptProfile::Normal
     };
+
+    if let Err(e) = setup_git_remotes(&config.git.remote) {
+        tracing::error!("Failed to setup git remotes: {}", e);
+        std::process::exit(1);
+    }
+
     let prompts = match load_prompt::<R>(&config.prompt, prompt_profile) {
         Ok(p) => p,
         Err(e) => {

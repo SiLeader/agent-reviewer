@@ -51,6 +51,7 @@ chrono = "0.4.44"
 
 glob = "0.3.3"
 git2 = "0.21.0"
+octocrab = "0.51.0"
 
 [package]
 name = "agent-reviewer"
@@ -81,3 +82,4 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
 clap = { workspace = true, features = ["derive"] }
+octocrab = { workspace = true }

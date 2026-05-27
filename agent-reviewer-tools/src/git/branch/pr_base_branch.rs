@@ -39,8 +39,8 @@ impl AgentTool for GitPrBaseBranch {
     }
 
     async fn run(&self, _args: &Value) -> anyhow::Result<String> {
-        tokio::task::spawn_blocking(|| {
-            let name = Git::new()?.get_pr_default_branch()?;
+        tokio::task::spawn(async {
+            let name = Git.get_pr_default_branch().await?;
             Ok(serde_json::to_string(&GitPrBaseBranchResult {
                 branch_name: name,
             })?)

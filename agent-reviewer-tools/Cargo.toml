@@ -34,5 +34,6 @@ anyhow = { workspace = true }
 glob = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 git2 = { workspace = true }
+octocrab = { workspace = true }
 
 tracing = { workspace = true }
