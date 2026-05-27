@@ -79,7 +79,7 @@ impl GitHub {
         STATIC_INSTANCE.write().await.token = token.trim_end_matches("/").to_string();
     }
 
-    async fn reqeust_get<Res: DeserializeOwned>(
+    async fn request_get<Res: DeserializeOwned>(
         &self,
         path: &str,
         query: Option<BTreeMap<&str, &str>>,
@@ -100,7 +100,7 @@ impl GitHub {
         };
 
         let client = reqwest::Client::new();
-        Ok(client
+        let res = client
             .get(format!(
                 "{}/{}{query}",
                 holder.base_url,
@@ -109,10 +109,15 @@ impl GitHub {
             .bearer_auth(&holder.token)
             .header("Accept", "application/vnd.github+json")
             .header("X-GitHub-Api-Version", "2026-03-10")
+            .header("User-Agent", "agent-reviewer")
             .send()
-            .await?
-            .json()
-            .await?)
+            .await?;
+        if !res.status().is_success() {
+            let status = res.status();
+            let body = res.text().await?;
+            anyhow::bail!("Failed to request github: {} {}", status, body);
+        }
+        Ok(res.json().await?)
     }
 }
 
@@ -121,7 +126,7 @@ impl GitRemote for GitHub {
     async fn get_default_branch(&self) -> anyhow::Result<String> {
         let (owner, repo) = get_remote()?;
         let res: GetRepoResponse = self
-            .reqeust_get(&format!("/repos/{owner}/{repo}"), None)
+            .request_get(&format!("/repos/{owner}/{repo}"), None)
             .await?;
         Ok(res.default_branch)
     }
@@ -131,7 +136,7 @@ impl GitRemote for GitHub {
         let (owner, repo) = get_remote()?;
 
         let res: Vec<GetPullRequestResponse> = self
-            .reqeust_get(
+            .request_get(
                 &format!("/repos/{owner}/{repo}/pulls"),
                 Some(BTreeMap::from([(
                     "head",
