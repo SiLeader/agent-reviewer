@@ -21,7 +21,9 @@ use crate::orchestrator::submit_marker::{
 use crate::prompt::PromptManager;
 use agent_reviewer_agent::ReActAgent;
 use agent_reviewer_agent::builder::ReActAgentBuilder;
-use agent_reviewer_agent::tools::subagent::{Advisor, Explorer};
+use agent_reviewer_agent::tools::subagent::{
+    Advisor, Explorer, Verifier, VerifierDecision, VerifierResult, VerifyArgs,
+};
 use agent_reviewer_model_provider::ModelConfig;
 use agent_reviewer_tools::fs::{ListFiles, ReadFile, SearchFile};
 use agent_reviewer_tools::git::{
@@ -49,6 +51,8 @@ pub(crate) struct Orchestrator<R> {
 
 const DEFAULT_MAX_LOOP_COUNT: usize = 6;
 const DEFAULT_MAX_TOKENS: u32 = 50000;
+/// Maximum number of verifier retry attempts per review unit.
+const MAX_VERIFIER_RETRIES: usize = 3;
 
 fn get_ro_toolset(additional: &[Option<Arc<dyn AgentTool>>]) -> Vec<Arc<dyn AgentTool>> {
     let mut tools: Vec<Arc<dyn AgentTool>> = vec![
@@ -199,27 +203,141 @@ where
             ReviewModel::Standard => &self.steps.review.standard,
             ReviewModel::Power => &self.steps.review.power,
         };
-        let advisor_agent = if let Some(a) = &review_conf.advisor_agent {
-            Some(
-                Arc::new(Advisor::from(self.build_agent(a, vec![], vec![], None)?))
-                    as Arc<dyn AgentTool>,
-            )
-        } else {
-            None
-        };
 
-        let agent = self.build_agent(
-            &review_conf.main_agent,
-            get_ro_toolset(&[Some(explorer), advisor_agent]),
-            vec![],
-            Some(Arc::new(SubmitReview::<R>::default())),
-        )?;
-        let system_prompt = self.prompts.render_review_system()?;
-        let user_prompt = self.prompts.render_review_user(&unit)?;
-        let result = agent.run(&system_prompt, &user_prompt).await?;
-        let result: R = serde_json::from_value(result)?;
-        Ok(result)
+        // Build verifier agent if configured
+        let verifier_agent: Option<Arc<Verifier>> =
+            if let Some(verifier_id) = &review_conf.verifier_agent {
+                Some(Arc::new(Verifier::from(self.build_agent(
+                    verifier_id,
+                    vec![],
+                    vec![],
+                    None,
+                )?)))
+            } else {
+                None
+            };
+
+        // Run initial review, then verify and retry if rejected
+        let mut verifier_feedback: Option<String> = None;
+        for attempt in 0..=MAX_VERIFIER_RETRIES {
+            let advisor_agent = if let Some(a) = &review_conf.advisor_agent {
+                Some(
+                    Arc::new(Advisor::from(self.build_agent(a, vec![], vec![], None)?))
+                        as Arc<dyn AgentTool>,
+                )
+            } else {
+                None
+            };
+
+            let agent = self.build_agent(
+                &review_conf.main_agent,
+                get_ro_toolset(&[Some(explorer.clone()), advisor_agent]),
+                vec![],
+                Some(Arc::new(SubmitReview::<R>::default())),
+            )?;
+            let system_prompt = self.prompts.render_review_system()?;
+
+            // On retry, inject verifier feedback into the user prompt
+            let user_prompt = if let Some(ref feedback) = verifier_feedback {
+                let base_user = self.prompts.render_review_user(&unit)?;
+                format!(
+                    "{}\n\n## Verifier Feedback (from previous review attempt)\n{}\n\nPlease address the verifier's concerns in your review.",
+                    base_user, feedback
+                )
+            } else {
+                self.prompts.render_review_user(&unit)?
+            };
+
+            let result = agent.run(&system_prompt, &user_prompt).await?;
+            let result: R = serde_json::from_value(result)?;
+
+            // If no verifier is configured, return immediately
+            let Some(verifier) = verifier_agent.as_ref() else {
+                return Ok(result);
+            };
+
+            // Verify the review result
+            let verifier_result = verify_review(verifier.as_ref(), &unit.task, &result).await?;
+
+            match verifier_result.decision {
+                VerifierDecision::Accept => {
+                    tracing::info!(
+                        "Verifier accepted review for unit '{}' (attempt {}). Reasons: {:?}",
+                        unit.task,
+                        attempt + 1,
+                        verifier_result.reasons
+                    );
+                    return Ok(result);
+                }
+                VerifierDecision::Reject => {
+                    let feedback = format!(
+                        "Verdict: REJECT\nReasons:\n{}\nSuggested improvements:\n{}",
+                        verifier_result
+                            .reasons
+                            .iter()
+                            .map(|r| format!("- {}", r))
+                            .collect::<Vec<_>>()
+                            .join("\n"),
+                        verifier_result
+                            .suggested_improvements
+                            .iter()
+                            .map(|i| format!("- {}", i))
+                            .collect::<Vec<_>>()
+                            .join("\n")
+                    );
+
+                    if attempt < MAX_VERIFIER_RETRIES {
+                        tracing::warn!(
+                            "Verifier rejected review for unit '{}' (attempt {}/{})\n{}",
+                            unit.task,
+                            attempt + 1,
+                            MAX_VERIFIER_RETRIES + 1,
+                            feedback
+                        );
+                        verifier_feedback = Some(feedback);
+                    } else {
+                        // Max retries exceeded; return the last review result anyway with a warning
+                        tracing::warn!(
+                            "Verifier rejected review for unit '{}' after {} retry attempts. Returning last review result.",
+                            unit.task,
+                            MAX_VERIFIER_RETRIES + 1
+                        );
+                        return Ok(result);
+                    }
+                }
+            }
+        }
+
+        // This should be unreachable due to the return in the loop, but satisfy the compiler
+        anyhow::bail!(
+            "Unexpected verifier loop completion for unit '{}'",
+            unit.task
+        )
     }
+}
+
+/// Verify a review result using the verifier agent. Returns the verifier's decision and reasoning.
+async fn verify_review<R: serde::Serialize>(
+    verifier: &Verifier,
+    task: &str,
+    review_result: &R,
+) -> anyhow::Result<VerifierResult> {
+    use agent_reviewer_tools::AgentTool;
+
+    let review_json = serde_json::to_string(review_result)
+        .map_err(|e| anyhow::anyhow!("Failed to serialize review result for verifier: {}", e))?;
+
+    let args = VerifyArgs {
+        task: task.to_string(),
+        review_result: review_json,
+    };
+
+    let args_value = serde_json::to_value(&args)?;
+    let result_str = verifier.run(&args_value).await?;
+    let verifier_result: VerifierResult = serde_json::from_str(&result_str)
+        .map_err(|e| anyhow::anyhow!("Failed to deserialize verifier result: {}", e))?;
+
+    Ok(verifier_result)
 }
 
 fn chat_options_for_model(model_name: &str, max_tokens: u32) -> ChatOptions {

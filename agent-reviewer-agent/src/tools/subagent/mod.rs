@@ -14,6 +14,7 @@
 
 mod advisor;
 mod explorer;
+mod verifier;
 
 use crate::ReActAgent;
 pub use advisor::*;
@@ -26,6 +27,7 @@ use agent_reviewer_tools::git::{
 pub use explorer::*;
 use serde_json::Value;
 use std::sync::Arc;
+pub use verifier::*;
 
 fn setup_tools(agent: &mut ReActAgent, submit: impl MarkerAgentTool + 'static) {
     agent.submit_tool_name = submit.tool().name.to_string();
@@ -49,4 +51,14 @@ async fn run_subagent(
 ) -> anyhow::Result<String> {
     let value = agent.run(system_prompt, &args.to_string()).await?;
     Ok(value.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn verifier_module_is_exported() {
+        // This test just verifies the module is accessible.
+        let _desc = super::VERIFIER_TOOL_DESCRIPTION;
+        assert!(!_desc.is_empty());
+    }
 }
