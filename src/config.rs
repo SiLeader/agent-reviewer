@@ -75,7 +75,7 @@ pub(crate) struct FinalizeStepConfig {
 pub(crate) struct ReviewStepAgentConfig {
     pub(crate) main_agent: String,
     pub(crate) advisor_agent: Option<String>,
-    // pub(crate) verifier_agent: Option<String>,
+    pub(crate) verifier_agent: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
