@@ -1137,9 +1137,9 @@ dependencies = [
 
 [[package]]
 name = "genai"
-version = "0.6.0-beta.21"
+version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7208975d8a2e6dd8e127f25a8ea27f2245bdaa911ae8a06d52bade566276971"
+checksum = "1d12aba7e9dc2c4d54654566dc3dc8383b5cb52e0cfc5754989afe0480d933e3"
 dependencies = [
  "aws-config",
  "aws-credential-types",
